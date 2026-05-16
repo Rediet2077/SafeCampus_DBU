@@ -122,10 +122,15 @@ export default function SendAlert() {
             <div className="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center text-5xl mb-6 shadow-2xl animate-bounce">📡</div>
             <h1 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">Signal Dispatched</h1>
             <p className="text-gray-400 mb-8 font-medium">Verification complete. Help is on the way.</p>
-            <button onClick={() => navigate("/user")} className="w-full bg-white text-black font-black py-4 rounded-2xl">Return Home</button>
+            <button 
+              onClick={() => navigate(auth.currentUser ? "/user" : "/")} 
+              className="w-full bg-white text-black font-black py-4 rounded-2xl active:scale-95 transition-all shadow-xl"
+            >
+              Return Home
+            </button>
           </>
         ) : (
-          <button onClick={() => navigate("/user")} className="mt-20 opacity-0">Home</button>
+          <button onClick={() => navigate(auth.currentUser ? "/user" : "/")} className="mt-20 opacity-0 cursor-default">Home</button>
         )}
       </div>
     );
