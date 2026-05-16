@@ -38,19 +38,26 @@ export default function SendAlert() {
   }, []);
 
   const [networkStatus, setNetworkStatus] = useState("");
+  const [activeChannels, setActiveChannels] = useState([]);
 
   const handleSendAlert = async () => {
     setLoading(true);
     setError("");
+    setActiveChannels([]);
     
-    // 🛡️ SMART CONNECTIVITY SWITCHING SIMULATION
-    setNetworkStatus("Scanning Networks...");
-    await new Promise(r => setTimeout(r, 600));
-    setNetworkStatus("WiFi Unstable. Rerouting...");
-    await new Promise(r => setTimeout(r, 800));
-    setNetworkStatus("Mobile Data Jammed. Switching to Bluetooth Mesh...");
-    await new Promise(r => setTimeout(r, 1000));
-    setNetworkStatus("Bluetooth Relay Connected. Transmitting Payload...");
+    // 🛡️ MULTI-CHANNEL ALERT DELIVERY SIMULATION
+    setNetworkStatus("Initiating Multi-Channel Broadcast...");
+    await new Promise(r => setTimeout(r, 500));
+    setActiveChannels(["Firebase Core"]);
+    await new Promise(r => setTimeout(r, 500));
+    setActiveChannels(["Firebase Core", "Local Network Bridge"]);
+    await new Promise(r => setTimeout(r, 500));
+    setActiveChannels(["Firebase Core", "Local Network Bridge", "Bluetooth Relay"]);
+    await new Promise(r => setTimeout(r, 500));
+    setActiveChannels(["Firebase Core", "Local Network Bridge", "Bluetooth Relay", "SMS Backup"]);
+    await new Promise(r => setTimeout(r, 500));
+    setActiveChannels(["Firebase Core", "Local Network Bridge", "Bluetooth Relay", "SMS Backup", "Email Node"]);
+    setNetworkStatus("All Nodes Locked. Transmitting Payload...");
     await new Promise(r => setTimeout(r, 600));
 
     // 🛡️ STEP 1: FETCH FULL USER PROFILE
@@ -229,10 +236,17 @@ export default function SendAlert() {
             {!loading ? (
               <p className="text-gray-400 text-sm mb-8 font-medium">Are you sure you want to trigger a campus-wide alert? Fake reports are punishable.</p>
             ) : (
-              <div className="mb-8 p-4 bg-black/50 rounded-2xl border border-gray-800">
-                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest animate-pulse">{networkStatus}</p>
-                 <div className="h-1 w-full bg-gray-800 mt-3 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 animate-[pulse_1s_ease-in-out_infinite] w-full" />
+              <div className="mb-8 p-4 bg-black/50 rounded-2xl border border-gray-800 text-left">
+                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest animate-pulse mb-4 text-center">{networkStatus}</p>
+                 <div className="space-y-3">
+                    {["Firebase Core", "Local Network Bridge", "Bluetooth Relay", "SMS Backup", "Email Node"].map(channel => (
+                       <div key={channel} className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                          <span className={activeChannels.includes(channel) ? "text-white" : "text-gray-700"}>{channel}</span>
+                          <span className={activeChannels.includes(channel) ? "text-green-500" : "text-gray-800"}>
+                             {activeChannels.includes(channel) ? "✓ CONNECTED" : "WAITING"}
+                          </span>
+                       </div>
+                    ))}
                  </div>
               </div>
             )}
