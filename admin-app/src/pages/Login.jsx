@@ -4,7 +4,7 @@ import { auth, db, rtdb } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { ref, get } from "firebase/database";
+import { ref, get, set } from "firebase/database";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -35,17 +35,24 @@ export default function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       clearTimeout(demoTimeout);
       
-      // Fetch role from RTDB to verify admin status
+      // 🛡️ PRIMARY ADMIN BYPASS (Immediate access for the demo account)
+      if (email.toLowerCase() === "admin@safecampus.com") {
+        setSuccess(true);
+        setTimeout(() => navigate("/"), 800);
+        return;
+      }
+
+      // 🔍 ROLE VERIFICATION (For other security personnel)
       const userRef = ref(rtdb, `users/${userCredential.user.uid}`);
       const snapshot = await get(userRef);
       const userData = snapshot.val();
 
-      if (userData?.role === 'admin' || email.toLowerCase() === "admin@safecampus.com") {
+      if (userData?.role === 'admin') {
         setSuccess(true);
         setTimeout(() => navigate("/"), 800);
       } else {
         await auth.signOut();
-        setError("ACCESS DENIED: Your account does not have Administrative Clearance.");
+        setError("ACCESS DENIED: Administrative Clearance Required.");
         setLoading(false);
       }
     } catch (err) {
@@ -53,26 +60,33 @@ export default function Login() {
       
       // 🚨 BRUTE FORCE LOCKOUT DETECTION
       if (err.code === "auth/too-many-requests") {
-        setError("ACCOUNT LOCKED: Too many failed attempts. Please try again later or reset password.");
+        setError("ACCOUNT LOCKED: Too many failed attempts. Please wait 60s.");
         setLoading(false);
         return;
       }
       
-      // 🚨 AUTO-INITIALIZE ADMIN
+      // 🚨 AUTO-INITIALIZE MAIN ADMIN (Dual-Database Write)
       if (email.toLowerCase() === "admin@safecampus.com" && (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential")) {
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          
+          // Write to Firestore
           await setDoc(doc(db, "users", userCredential.user.uid), {
-            name: "Main Admin",
-            email: email,
-            role: "admin",
-            trustScore: 100,
-            createdAt: new Date().toISOString()
+            name: "Main Admin", email, role: "admin", createdAt: new Date().toISOString()
           });
+          
+          // Write to Realtime Database (for trust score and alerts system)
+          const rtdbRef = ref(rtdb, `users/${userCredential.user.uid}`);
+          await set(rtdbRef, { 
+            name: "Main Admin", email, role: "admin", trustScore: 100
+          });
+
           setSuccess(true);
           setTimeout(() => navigate("/"), 800);
           return;
-        } catch (createErr) {}
+        } catch (createErr) {
+           console.error("Auto-init failed:", createErr);
+        }
       }
 
       switch (err.code) {
