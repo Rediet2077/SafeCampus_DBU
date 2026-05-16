@@ -17,7 +17,7 @@ export default function SendAlert() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  const DBU_COORDS = { lat: 9.6823, lng: 39.5312 };
+  const DBU_COORDS = { lat: 9.6569, lng: 39.5220 };
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Radius of the earth in km
