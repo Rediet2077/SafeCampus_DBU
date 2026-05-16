@@ -84,9 +84,42 @@ export default function Alerts() {
             <button 
               onClick={async () => {
                 const demoAlerts = {
-                  "demo_1": { severity: "critical", message: "Armed intruder reported near Block 10", location: "Block 10 (Main Hall)", status: "active", userName: "Abebe Kebede", timestamp: Date.now() },
-                  "demo_2": { severity: "medical", message: "Student collapsed with severe breathing issues", location: "Main Library", status: "active", userName: "Marta Alemu", timestamp: Date.now() - 5000 },
-                  "demo_3": { severity: "help", message: "Power outage and stuck elevator", location: "Engineering Complex", status: "active", userName: "Chala Bekele", timestamp: Date.now() - 10000 },
+                  "demo_1": { 
+                    severity: "critical", 
+                    message: "Armed intruder reported near Block 10", 
+                    location: "Block 10 (Main Hall)", 
+                    status: "active", 
+                    userType: "registered",
+                    userName: "Abebe Kebede", 
+                    userEmail: "abebe.k@dbu.edu.et",
+                    userPhone: "+251 911 223 344",
+                    idCardImage: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&q=80&w=200&h=280",
+                    timestamp: Date.now() 
+                  },
+                  "demo_2": { 
+                    severity: "medical", 
+                    message: "Student collapsed with severe breathing issues", 
+                    location: "Main Library", 
+                    status: "active", 
+                    userType: "registered",
+                    userName: "Marta Alemu", 
+                    userEmail: "marta.a@dbu.edu.et",
+                    userPhone: "+251 922 556 677",
+                    idCardImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200&h=280",
+                    timestamp: Date.now() - 5000 
+                  },
+                  "demo_3": { 
+                    severity: "help", 
+                    message: "Power outage and stuck elevator", 
+                    location: "Engineering Complex", 
+                    status: "active", 
+                    userType: "registered",
+                    userName: "Chala Bekele", 
+                    userEmail: "chala.b@dbu.edu.et",
+                    userPhone: "+251 933 889 900",
+                    idCardImage: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200&h=280",
+                    timestamp: Date.now() - 10000 
+                  },
                 };
                 await update(ref(rtdb, 'alerts'), demoAlerts);
               }}
