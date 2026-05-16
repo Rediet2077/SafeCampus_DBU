@@ -86,13 +86,6 @@ export default function Alerts() {
     return () => unsub();
   }, [audioEnabled]);
 
-  const handleResolve = async (id) => {
-    if (!window.confirm("Archive this incident?")) return;
-    await update(ref(rtdb, `alerts/${id}`), { 
-      status: "resolved", 
-      resolvedAt: new Date().toISOString() 
-    });
-  };
 
   const activeAlerts = alerts.filter(a => a.status === "active" || a.status === "dispatched");
   const resolvedAlerts = alerts.filter(a => a.status === "resolved");
