@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Layout from "./adminPage/Layout";
 import Dashboard from "./adminPage/Dashboard";
 import Alerts from "./adminPage/Alerts";
+import Users from "./adminPage/Users"; // 🛠️ IMPORTED USERS
 import CampusMap from "./adminPage/CampusMap";
 import Settings from "./adminPage/Settings";
 import UserLayout from "./userPage/UserLayout";
@@ -37,6 +38,7 @@ function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="alerts" element={<Alerts />} />
+            <Route path="users" element={<Users />} /> {/* 🛠️ ADDED USER MANAGEMENT ROUTE */}
             <Route path="map" element={<CampusMap />} />
             <Route path="settings" element={<Settings />} />
           </Route>
@@ -57,7 +59,6 @@ function App() {
             <Route path="tips" element={<SafetyTips />} />
           </Route>
 
-          {/* Catch-all route — redirect to login */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>

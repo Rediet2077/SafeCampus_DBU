@@ -43,54 +43,44 @@ export default function UserDashboard() {
 
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-    // 📍 CAPTURE REAL GPS
+    // 🛡️ STEP 1: CAPTURE GPS WITH 2s TIMEOUT (Prevents Hanging)
     let coords = null;
     try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { 
-          timeout: 5000,
-          enableHighAccuracy: true 
-        });
+      coords = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("GPS_TIMEOUT")), 2000);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => { clearTimeout(timeout); resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+          (err) => { clearTimeout(timeout); reject(err); },
+          { enableHighAccuracy: false, timeout: 2000 }
+        );
       });
-      coords = { lat: position.coords.latitude, lng: position.coords.longitude };
     } catch (err) {
-      console.warn("GPS access denied, using student profile address.");
+      console.warn("Using student profile address (GPS timeout).");
     }
 
     try {
-      let contacts = [];
-      if (user?.uid) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          contacts = userDoc.data().emergencyContacts || [];
-        }
-      }
-
       const alertData = {
         userType: "registered",
         userId: user?.uid || "anonymous",
         userName: user?.displayName || user?.email?.split('@')[0] || "Student",
-        message: "🆘 HIGH-PRIORITY EMERGENCY: User requested immediate help!",
+        message: "🆘 HIGH-PRIORITY STUDENT EMERGENCY: IMMEDIATE HELP NEEDED!",
         location: coords ? `GPS: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : "Student Dashboard",
         coordinates: coords,
         status: "active",
         severity: "critical",
         timestamp: new Date().toISOString(),
-        emergencyContacts: contacts,
+        medicalInfo: { bloodType: "O+", allergies: "None" } // Default simulation
       };
 
-      const networkTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000));
-
+      // 🛡️ STEP 2: SEND TO FIREBASE WITH 2s TIMEOUT
       try {
-        await Promise.race([
-          addDoc(collection(db, "alerts"), {
-            ...alertData,
-            timestamp: serverTimestamp()
-          }),
-          networkTimeout
-        ]);
+        const fbPromise = addDoc(collection(db, "alerts"), { ...alertData, timestamp: serverTimestamp() });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000));
+
+        await Promise.race([fbPromise, timeoutPromise]);
         setSent(true);
       } catch (err) {
+        // Fail-Safe Local Bridge
         const offlineAlerts = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
         offlineAlerts.push({ ...alertData, id: "offline_" + Date.now() });
         localStorage.setItem("offline_alerts", JSON.stringify(offlineAlerts));
@@ -117,50 +107,48 @@ export default function UserDashboard() {
     return (
       <div className="px-6 py-20 flex flex-col items-center text-center animate-in zoom-in duration-500 bg-red-600 min-h-screen text-white">
         <div className="w-24 h-24 bg-white text-red-600 rounded-full flex items-center justify-center text-5xl mb-6 shadow-xl animate-pulse">🚨</div>
-        <h1 className="text-3xl font-black mb-2 tracking-tighter">EMERGENCY SENT</h1>
-        <p className="text-white/80 mb-8 max-w-[250px]">GPS coordinates locked. Security and family are on the way. Stay calm.</p>
+        <h1 className="text-3xl font-black mb-2 tracking-tighter uppercase italic">Signal Locked</h1>
+        <p className="text-white/80 mb-8 max-w-[250px] font-medium">Security is navigating to your spot. Stay where you are.</p>
         <button onClick={() => setSent(false)} className="w-full bg-white text-red-600 font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-transform">I AM SAFE NOW</button>
       </div>
     );
   }
 
   return (
-    <div className="px-6 py-8 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="px-6 py-8 animate-in slide-in-from-bottom-4 duration-500 bg-white min-h-screen">
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Hi, {user?.displayName || 'Student'} 👋</h1>
-          <p className="text-gray-500 text-sm font-medium">SafeCampus Command Center</p>
+          <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Command Center Live</p>
         </div>
-        <div className="w-12 h-12 bg-[#6B46C1]/10 rounded-2xl flex items-center justify-center text-2xl border border-[#6B46C1]/20">🛡️</div>
+        <div className="w-12 h-12 bg-red-600/10 rounded-2xl flex items-center justify-center text-2xl border border-red-600/20 shadow-inner">🛡️</div>
       </div>
 
-      <div className="mb-10 flex flex-col items-center bg-red-50 rounded-[40px] p-8 border border-red-100 relative overflow-hidden">
+      <div className="mb-10 flex flex-col items-center bg-red-50 rounded-[40px] p-10 border-2 border-red-100 relative overflow-hidden shadow-inner">
         <div className="absolute top-0 right-0 p-4 opacity-5 text-8xl -rotate-12">🆘</div>
-        <p className="text-red-600 font-black text-[10px] uppercase tracking-[0.3em] mb-6 relative z-10">{isHolding ? 'HOLDING...' : 'Hold 2s for Emergency'}</p>
-        <button onMouseDown={startHold} onMouseUp={endHold} onMouseLeave={endHold} onTouchStart={startHold} onTouchEnd={endHold} disabled={isTriggering} className={`relative w-44 h-44 rounded-full flex items-center justify-center transition-all duration-300 z-10 select-none ${isHolding ? 'scale-105' : 'scale-100'}`}>
+        <p className="text-red-600 font-black text-[11px] uppercase tracking-[0.3em] mb-8 relative z-10">{isHolding ? 'HOLDING...' : 'HOLD 2S FOR EMERGENCY'}</p>
+        <button 
+          onMouseDown={startHold} onMouseUp={endHold} onMouseLeave={endHold} onTouchStart={startHold} onTouchEnd={endHold}
+          disabled={isTriggering} 
+          className={`relative w-48 h-48 rounded-full flex items-center justify-center transition-all duration-300 z-10 select-none ${isHolding ? 'scale-105 shadow-2xl' : 'scale-100 shadow-xl'}`}
+        >
           <svg className="absolute inset-0 w-full h-full -rotate-90">
-            <circle cx="88" cy="88" r="80" fill="transparent" stroke="#fee2e2" strokeWidth="8" />
-            <circle cx="88" cy="88" r="80" fill="transparent" stroke="#dc2626" strokeWidth="8" strokeDasharray="502" strokeDashoffset={502 - (502 * progress) / 100} strokeLinecap="round" className="transition-all duration-75" />
+            <circle cx="96" cy="96" r="88" fill="transparent" stroke="#fee2e2" strokeWidth="12" />
+            <circle cx="96" cy="96" r="88" fill="transparent" stroke="#dc2626" strokeWidth="12" strokeDasharray="553" strokeDashoffset={553 - (553 * progress) / 100} strokeLinecap="round" className="transition-all duration-75" />
           </svg>
-          <div className={`w-36 h-36 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-300 ${isHolding ? 'bg-red-700 shadow-red-900/40' : 'bg-red-600 shadow-red-900/20'}`}>
-             {isTriggering ? <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" /> : <><span className="text-white font-black text-xs tracking-widest">SOS</span><span className="text-3xl">🚨</span></>}
+          <div className={`w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-300 ${isHolding ? 'bg-red-700 shadow-red-900/40' : 'bg-red-600 shadow-red-900/20 hover:bg-red-500'}`}>
+             {isTriggering ? <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" /> : <><span className="text-white font-black text-sm tracking-[0.2em] mb-1">SOS</span><span className="text-4xl animate-bounce">🚨</span></>}
           </div>
         </button>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         {menuItems.map((item) => (
-          <button key={item.id} onClick={() => navigate(item.route)} className={`flex flex-col items-center justify-center p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] ${item.color}`}>
-            <span className="text-3xl mb-3">{item.icon}</span><span className="font-bold text-xs uppercase tracking-wider">{item.label}</span>
+          <button key={item.id} onClick={() => navigate(item.route)} className={`flex flex-col items-start p-6 rounded-[32px] border transition-all hover:scale-[1.02] active:scale-95 ${item.color} shadow-sm`}>
+            <span className="text-3xl mb-4 bg-white/50 w-12 h-12 flex items-center justify-center rounded-2xl shadow-inner">{item.icon}</span>
+            <span className="font-black text-xs uppercase tracking-widest">{item.label}</span>
           </button>
         ))}
-      </div>
-
-      <div className="mt-8 bg-gray-900 rounded-[32px] p-6 text-white overflow-hidden relative">
-        <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">📞</div>
-        <h3 className="text-lg font-bold mb-1">Campus Security</h3>
-        <p className="text-gray-400 text-xs mb-4">Direct emergency voice line</p>
-        <button className="bg-red-600 hover:bg-red-500 w-full py-4 rounded-2xl font-black text-sm transition-colors shadow-lg shadow-red-900/40">Call 911</button>
       </div>
     </div>
   );

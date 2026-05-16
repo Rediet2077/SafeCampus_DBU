@@ -1,80 +1,63 @@
-import { NavLink } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-
-const navItems = [
-  { to: "/admin", icon: "🏠", label: "Dashboard" },
-  { to: "/admin/alerts", icon: "🔴", label: "Live Alerts" },
-  { to: "/admin/map", icon: "🗺️", label: "Campus Map" },
-  { to: "/admin/settings", icon: "⚙️", label: "Settings" },
-];
+import { Link, useLocation } from "react-router-dom";
+import { auth } from "../firebase";
+import { signOut } from "firebase/auth";
 
 export default function Sidebar() {
-  const { user, logout } = useAuth();
+  const location = useLocation();
 
-  // Get avatar initial from email
-  const initial = user?.email?.charAt(0).toUpperCase() ?? "A";
+  const menu = [
+    { name: "Overview", path: "/admin", icon: "📊" },
+    { name: "Live Alerts", path: "/admin/alerts", icon: "🚨" },
+    { name: "User Management", path: "/admin/users", icon: "👥" }, // 🛠️ RENAMED
+    { name: "Campus Map", path: "/admin/map", icon: "🗺️" },
+    { name: "System Settings", path: "/admin/settings", icon: "⚙️" },
+  ];
 
   return (
-    <aside className="w-64 min-h-screen bg-gray-900 border-r border-gray-800 flex flex-col">
-      {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center text-lg shadow-lg shadow-red-900/50">
-            🛡️
+    <div className="w-72 bg-gray-950 border-r border-gray-900 flex flex-col h-screen sticky top-0">
+      <div className="p-8">
+        <div className="flex items-center gap-3 mb-12 cursor-pointer" onClick={() => window.location.href = "/"}>
+          <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/40">
+            <span className="text-white font-black text-xl">S</span>
           </div>
-          <div>
-            <h1 className="text-white font-bold text-base leading-tight">SafeCampus</h1>
-            <p className="text-gray-500 text-xs">Admin Panel</p>
-          </div>
+          <span className="text-white font-black text-xl tracking-tighter uppercase italic">Safe<span className="text-red-600">Campus</span></span>
         </div>
+
+        <nav className="space-y-2">
+          {menu.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${
+                location.pathname === item.path
+                  ? "bg-red-600 text-white shadow-xl shadow-red-900/20 scale-105"
+                  : "text-gray-500 hover:bg-gray-900 hover:text-white"
+              }`}
+            >
+              <span className="text-xl">{item.icon}</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                {item.name}
+              </span>
+            </Link>
+          ))}
+        </nav>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? "bg-red-600/20 text-red-400 border border-red-600/30"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
-              }`
-            }
-          >
-            <span className="text-lg">{item.icon}</span>
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* User Footer + Logout */}
-      <div className="px-4 py-4 border-t border-gray-800 space-y-3">
-        {/* User Info */}
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
-            {initial}
-          </div>
-          <div className="min-w-0">
-            <p className="text-white text-xs font-semibold truncate">
-              {user?.email ?? "Admin"}
-            </p>
-            <p className="text-gray-500 text-xs">Administrator</p>
+      <div className="mt-auto p-8 border-t border-gray-900">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center text-lg shadow-inner">🛡️</div>
+          <div>
+            <p className="text-[10px] font-black text-white uppercase">Admin Officer</p>
+            <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Level 5 Access</p>
           </div>
         </div>
-
-        {/* Logout Button */}
-        <button
-          id="logout-btn"
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-gray-400 hover:text-red-400 hover:bg-red-600/10 border border-transparent hover:border-red-600/20 px-3 py-2 rounded-xl transition-all duration-150"
+        <button 
+          onClick={() => signOut(auth)}
+          className="w-full py-4 bg-gray-900 hover:bg-red-900/20 text-gray-500 hover:text-red-500 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border border-transparent hover:border-red-900/30"
         >
-          <span>🚪</span> Sign Out
+          System Logout
         </button>
       </div>
-    </aside>
+    </div>
   );
 }
-

@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 
 export default function SendAlert() {
   const [type, setType] = useState("critical");
@@ -9,141 +9,136 @@ export default function SendAlert() {
   const [location, setLocation] = useState("Main Library");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [silentMode, setSilentMode] = useState(false);
+  const [chatMode, setChatMode] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState("");
   const navigate = useNavigate();
 
-  const emergencyLevels = [
-    { id: "critical", label: "Critical Threat", color: "bg-red-600", icon: "🚨" },
-    { id: "medical", label: "Medical Emergency", color: "bg-orange-500", icon: "🚑" },
-    { id: "suspicious", label: "Suspicious Activity", color: "bg-yellow-500", icon: "👁️" },
-    { id: "help", label: "General Help", color: "bg-blue-500", icon: "🤝" },
-  ];
-
-  const dbuLocations = [
-    { name: "Administration Block", coords: { top: "20%", left: "45%" } },
-    { name: "Main Library", coords: { top: "35%", left: "30%" } },
-    { name: "Girls' Dormitory", coords: { top: "70%", left: "80%" } },
-    { name: "Student Cafe 1", coords: { top: "45%", left: "60%" } },
-  ];
-
-  const handleVoiceTrigger = () => {
-    setIsListening(true);
-    setTimeout(() => {
-      setDescription("Help me! I am near the cafeteria and I see something dangerous!");
-      setIsListening(false);
-    }, 1500);
-  };
+  useEffect(() => {
+    if (description.length > 5) {
+      const text = description.toLowerCase();
+      if (text.includes("hurt") || text.includes("doctor") || text.includes("blood") || text.includes("medical")) {
+        setAiAnalysis("🟠 AI Detects: Medical Emergency");
+        setType("medical");
+      } else if (text.includes("follow") || text.includes("weapon") || text.includes("danger") || text.includes("threat")) {
+        setAiAnalysis("🔴 AI Detects: Critical Threat");
+        setType("critical");
+      } else if (text.includes("lost") || text.includes("question") || text.includes("help")) {
+        setAiAnalysis("🔵 AI Detects: General Help");
+        setType("help");
+      }
+    } else { setAiAnalysis(""); }
+  }, [description]);
 
   const handleSendAlert = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
     
-    // 🛡️ STEP 1: CAPTURE GPS WITH AGGRESSIVE TIMEOUT (Prevents Hanging)
+    // 🛡️ STEP 1: CAPTURE GPS (Strict 2s Timeout)
     let coords = null;
     try {
       coords = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("GPS_TIMEOUT")), 2000); // 2 second max for GPS
+        const t = setTimeout(() => reject("timeout"), 2000);
         navigator.geolocation.getCurrentPosition(
-          (pos) => { clearTimeout(timeout); resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-          (err) => { clearTimeout(timeout); reject(err); },
-          { enableHighAccuracy: false, timeout: 2000 }
+          (p) => { clearTimeout(t); resolve({ lat: p.coords.latitude, lng: p.coords.longitude }); },
+          () => { clearTimeout(t); reject(); },
+          { timeout: 2000, enableHighAccuracy: false }
         );
       });
-    } catch (err) {
-      console.warn("GPS failed or timed out, using campus fallback.");
-    }
+    } catch (e) { console.warn("GPS Timeout"); }
 
     const alertData = {
-      severity: type,
-      message: description || `Emergency Alert: ${type}`,
-      location: location,
-      coordinates: coords,
-      status: "active",
-      timestamp: new Date().toISOString(),
+      userType: "registered",
       userId: auth.currentUser?.uid || "anonymous",
       userName: auth.currentUser?.displayName || "Student",
-      evidenceImage: imagePreview,
+      severity: type,
+      message: description || `EMERGENCY: ${type.toUpperCase()}`,
+      location: location,
+      status: "active",
+      silent: silentMode,
+      trustScore: 98,
+      timestamp: new Date().toISOString(),
+      coordinates: coords,
       medicalInfo: { bloodType: "O+", allergies: "None" }
     };
 
-    // 🛡️ STEP 2: SEND TO FIREBASE WITH 2s TIMEOUT
+    // 🛡️ STEP 2: SEND TO FIREBASE (Strict 2s Timeout + Offline Fallback)
     try {
       const fbPromise = addDoc(collection(db, "alerts"), { ...alertData, timestamp: serverTimestamp() });
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("NETWORK_TIMEOUT")), 2000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000));
 
       await Promise.race([fbPromise, timeoutPromise]);
       setSuccess(true);
-    } catch (error) {
-      console.warn("Switching to Fail-Safe Local Bridge...");
-      // 🛡️ OFFLINE LOCAL BACKUP
+    } catch (err) {
+      // Fail-Safe Bridge
       const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-      offline.push({ ...alertData, id: "offline_" + Date.now() });
+      offline.push({ ...alertData, id: "offline_user_" + Date.now() });
       localStorage.setItem("offline_alerts", JSON.stringify(offline));
-      
-      // Instant Cross-Tab Notification
       window.dispatchEvent(new Event("storage"));
       setSuccess(true);
-    } finally {
-      setLoading(false);
+    } finally { 
+      setLoading(false); 
     }
   };
 
   if (success) {
     return (
-      <div className="px-6 py-20 flex flex-col items-center text-center animate-in zoom-in duration-500 min-h-screen bg-gray-950 text-white">
-        <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-5xl mb-6 shadow-2xl animate-pulse">📡</div>
-        <h1 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">Emergency Signal Locked</h1>
-        <p className="text-gray-400 mb-12 max-w-[250px] font-medium">Responders are navigating to your location.</p>
-        <button onClick={() => navigate("/user")} className="w-full bg-white text-black font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-transform">CANCEL EMERGENCY</button>
+      <div className={`px-6 py-20 flex flex-col items-center text-center min-h-screen ${silentMode ? 'bg-white' : 'bg-gray-950 text-white'}`}>
+        {!silentMode ? (
+          <>
+            <div className="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center text-5xl mb-6 shadow-2xl animate-bounce">📡</div>
+            <h1 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">Signal Dispatched</h1>
+            <p className="text-gray-400 mb-8 font-medium">Your location is locked. Help is on the way.</p>
+            <button onClick={() => navigate("/user")} className="w-full bg-white text-black font-black py-4 rounded-2xl">Return Home</button>
+          </>
+        ) : (
+          <>
+            <p className="text-gray-400 font-medium">Searching for available networks...</p>
+            <button onClick={() => navigate("/user")} className="mt-20 opacity-0">Home</button>
+          </>
+        )}
       </div>
     );
   }
 
   return (
     <div className="px-6 py-8 bg-gray-950 min-h-screen text-white">
-      <div className="flex items-center gap-3 mb-10">
-        <button onClick={() => navigate("/user")} className="w-12 h-12 bg-gray-900 rounded-2xl flex items-center justify-center text-xl font-bold border border-gray-800">←</button>
-        <h1 className="text-2xl font-black tracking-tight uppercase italic">Emergency Console</h1>
+      <div className="flex justify-between items-center mb-8">
+        <button onClick={() => navigate("/user")} className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center text-xl font-bold border border-gray-800">←</button>
+        <button onClick={() => setSilentMode(!silentMode)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${silentMode ? 'bg-red-600 text-white border-red-500' : 'bg-gray-900 text-gray-500 border-gray-800'}`}>
+          {silentMode ? '🤫 Silent Mode' : '🔊 Standard'}
+        </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-10">
-        {emergencyLevels.map((lvl) => (
-          <button key={lvl.id} type="button" onClick={() => setType(lvl.id)} className={`flex flex-col items-center justify-center p-6 rounded-3xl border-2 transition-all duration-300 ${type === lvl.id ? `${lvl.color} border-white scale-105 shadow-2xl shadow-red-900/40` : 'bg-gray-900 border-gray-800 opacity-40'}`}>
-            <span className="text-3xl mb-2">{lvl.icon}</span>
-            <span className="text-[10px] font-black uppercase tracking-tight">{lvl.label}</span>
-          </button>
-        ))}
+      <div className="flex bg-gray-900 p-1 rounded-2xl border border-gray-800 mb-8">
+        <button onClick={() => setChatMode(false)} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${!chatMode ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500'}`}>SOS Button</button>
+        <button onClick={() => setChatMode(true)} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${chatMode ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500'}`}>AI Chat</button>
       </div>
 
-      <form onSubmit={handleSendAlert} className="space-y-8">
-        <div className="grid grid-cols-2 gap-3">
-          <button type="button" onClick={handleVoiceTrigger} className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${isListening ? 'bg-red-600 border-red-400 animate-pulse' : 'bg-gray-900 border-gray-800 text-gray-400'}`}>
-            <span className="text-xl">🎙️</span><span className="text-[10px] font-black uppercase">{isListening ? 'LISTENING...' : 'VOICE SOS'}</span>
-          </button>
-          <label className="flex items-center justify-center gap-2 p-4 rounded-2xl border-2 bg-gray-900 border-gray-800 text-gray-400 cursor-pointer">
-            <span className="text-xl">📷</span><span className="text-[10px] font-black uppercase">EVIDENCE</span>
-            <input type="file" onChange={(e) => {
-              const file = e.target.files[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => setImagePreview(reader.result);
-                reader.readAsDataURL(file);
-              }
-            }} className="hidden" accept="image/*" />
-          </label>
+      {!chatMode ? (
+        <div className="grid grid-cols-2 gap-3 mb-10">
+           {['critical', 'medical', 'suspicious', 'help'].map(lvl => (
+             <button key={lvl} onClick={() => setType(lvl)} className={`p-6 rounded-3xl border-2 transition-all ${type === lvl ? 'bg-red-600 border-white scale-105 shadow-xl shadow-red-900/40' : 'bg-gray-900 border-gray-800 opacity-40 hover:opacity-100'}`}>
+               <span className="text-2xl block mb-2">{lvl === 'critical' ? '🚨' : lvl === 'medical' ? '🚑' : lvl === 'suspicious' ? '👁️' : '🤝'}</span>
+               <span className="text-[10px] font-black uppercase tracking-widest">{lvl}</span>
+             </button>
+           ))}
         </div>
+      ) : (
+        <div className="mb-10 bg-gray-900/50 p-6 rounded-[32px] border border-gray-800 shadow-inner">
+           <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Describe incident...</p>
+           <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Type here..." className="w-full bg-transparent border-none text-white font-bold outline-none h-32 resize-none" />
+           {aiAnalysis && <p className="mt-4 text-[10px] font-black text-blue-400 uppercase animate-pulse">{aiAnalysis}</p>}
+        </div>
+      )}
 
-        {imagePreview && <div className="mt-4 relative h-32 rounded-2xl overflow-hidden border-2 border-gray-800"><img src={imagePreview} className="w-full h-full object-cover" alt="Preview" /></div>}
-
-        <select value={location} onChange={(e) => setLocation(e.target.value)} className="w-full bg-gray-900 border-2 border-gray-800 rounded-2xl px-5 py-5 text-white font-bold appearance-none outline-none focus:border-red-600">
-          {dbuLocations.map(loc => <option key={loc.name} value={loc.name}>{loc.name}</option>)}
-        </select>
-
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Type details here..." rows={3} className="w-full bg-gray-900 border-2 border-gray-800 rounded-3xl px-6 py-6 text-white font-medium focus:border-red-600 transition-all resize-none outline-none" />
-
-        <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-500 disabled:bg-gray-800 text-white font-black py-6 rounded-[28px] transition-all shadow-2xl shadow-red-900/60 text-sm tracking-[0.2em] uppercase active:scale-[0.98]">
-          {loading ? <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto" /> : "BROADCAST EMERGENCY SIGNAL"}
+      <form onSubmit={handleSendAlert} className="space-y-6">
+        <div className="bg-gray-900 border border-gray-800 rounded-3xl p-6 flex justify-between items-center shadow-inner">
+           <div><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Zone</p><select value={location} onChange={(e) => setLocation(e.target.value)} className="bg-transparent text-white font-black outline-none"><option>Main Library</option><option>Student Cafe</option><option>Girls Dorm</option></select></div>
+           <div className="text-right"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Trust</p><p className="text-green-500 font-black">98%</p></div>
+        </div>
+        <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-500 disabled:bg-gray-800 text-white font-black py-6 rounded-[32px] transition-all shadow-2xl shadow-red-900/40 tracking-widest uppercase">
+          {loading ? "ESTABLISHING SIGNAL..." : "BROADCAST SOS"}
         </button>
       </form>
     </div>

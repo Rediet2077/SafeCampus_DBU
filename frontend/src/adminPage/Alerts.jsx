@@ -1,213 +1,131 @@
 import { useEffect, useState, useRef } from "react";
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-  doc,
-  updateDoc,
-  deleteDoc,
-} from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 
-const ALARM_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+const SIREN_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("active");
-  const [actionId, setActionId] = useState(null);
-  const [connStatus, setConnStatus] = useState("connecting");
-  const audioRef = useRef(new Audio(ALARM_SOUND));
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const audioRef = useRef(new Audio(SIREN_SOUND));
+  const spokenIds = useRef(new Set());
+
+  const speak = (text) => {
+    if (!window.speechSynthesis || !audioEnabled) return;
+    window.speechSynthesis.cancel(); // Clear queue
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.rate = 0.85;
+    msg.pitch = 1;
+    window.speechSynthesis.speak(msg);
+  };
 
   useEffect(() => {
-    // 🛡️ OFFLINE BACKUP SYNC
-    const syncOffline = () => {
-      const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-      return offline.map(a => ({ 
-        ...a, 
-        timestamp: { toDate: () => new Date(a.timestamp) } 
-      }));
-    };
-
     const q = query(collection(db, "alerts"), orderBy("timestamp", "desc"));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cloudData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      const offlineData = syncOffline();
-      const combined = [...offlineData, ...cloudData];
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Play Alarm for new Critical alerts
-      const hasCritical = combined.find(a => a.status === 'active' && a.severity === 'critical');
-      if (hasCritical) audioRef.current.play().catch(() => {});
-
-      setAlerts(combined);
-      setLoading(false);
-      setConnStatus("live");
-    }, (error) => {
-      console.warn("Switching to Offline Bridge...");
-      setAlerts(syncOffline());
-      setLoading(false);
-      setConnStatus("offline");
-    });
-
-    // 📡 Real-time Storage Listener (Instant Cross-Tab Sync)
-    const handleStorage = () => {
-      const offlineData = syncOffline();
-      setAlerts(prev => {
-        const cloudOnly = prev.filter(a => !a.id.toString().startsWith("offline_"));
-        return [...offlineData, ...cloudOnly];
+      // 🔊 VOICE & SIREN LOGIC
+      data.forEach(alert => {
+        if (alert.status === "active" && !spokenIds.current.has(alert.id)) {
+           if (audioEnabled) {
+             audioRef.current.play().catch(() => {});
+             speak(`Attention! New ${alert.severity} alert. ${alert.message || 'Emergency signal'} at ${alert.location || 'DBU Campus'}`);
+           }
+           spokenIds.current.add(alert.id);
+        }
       });
-      // Play sound for local alerts too
-      if (offlineData.some(a => a.severity === 'critical')) audioRef.current.play().catch(() => {});
-    };
 
-    window.addEventListener("storage", handleStorage);
-    return () => {
-      unsubscribe();
-      window.removeEventListener("storage", handleStorage);
-    };
-  }, []);
+      setAlerts(data);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [audioEnabled]);
 
-  const handleDispatch = async (alertId, guardName = "Officer Abebe") => {
-    if (alertId.toString().startsWith("offline_")) {
-        const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-        const updated = offline.map(a => a.id === alertId ? { ...a, status: "dispatched", assignedGuard: guardName, eta: "2:15" } : a);
-        localStorage.setItem("offline_alerts", JSON.stringify(updated));
-        window.dispatchEvent(new Event("storage"));
-        return;
-    }
-    setActionId(alertId);
-    try {
-      await updateDoc(doc(db, "alerts", alertId), { status: "dispatched", assignedGuard: guardName, eta: "3:45" });
-    } finally { setActionId(null); }
+  const handleResolve = async (id) => {
+    if (!window.confirm("Archive this incident?")) return;
+    await updateDoc(doc(db, "alerts", id), { 
+      status: "resolved", 
+      resolvedAt: new Date().toISOString() 
+    });
   };
 
-  const handleResolve = async (alertId) => {
-    if (alertId.toString().startsWith("offline_")) {
-        const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-        const updated = offline.filter(a => a.id !== alertId);
-        localStorage.setItem("offline_alerts", JSON.stringify(updated));
-        window.dispatchEvent(new Event("storage"));
-        return;
-    }
-    setActionId(alertId);
-    try { await updateDoc(doc(db, "alerts", alertId), { status: "resolved" }); } finally { setActionId(null); }
-  };
-
-  const getSeverityStyles = (severity) => {
-    switch (severity) {
-      case "critical": return "bg-red-600 text-white animate-pulse border-red-400";
-      case "medical": return "bg-orange-500 text-white border-orange-300";
-      case "suspicious": return "bg-yellow-500 text-black border-yellow-300";
-      case "help": return "bg-blue-500 text-white border-blue-300";
-      default: return "bg-gray-600 text-white";
-    }
-  };
-
-  const filteredAlerts = alerts.filter(a => {
-    if (filter === 'all') return true;
-    if (filter === 'active') return a.status === 'active' || a.status === 'dispatched';
-    return a.status === filter;
-  });
+  const activeAlerts = alerts.filter(a => a.status === "active" || a.status === "dispatched");
+  const resolvedAlerts = alerts.filter(a => a.status === "resolved");
 
   return (
-    <div className={`p-8 min-h-screen transition-all duration-500 ${alerts.some(a => a.status === 'active' && a.severity === 'critical') ? 'bg-red-950/20' : 'bg-gray-950'}`}>
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+    <div className="p-8 bg-gray-950 min-h-screen text-white">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-12">
           <div>
-            <h1 className="text-4xl font-black text-white tracking-tighter flex items-center gap-3">
-              <span className={`w-3 h-3 rounded-full animate-ping ${connStatus === 'live' ? 'bg-green-500' : 'bg-orange-500'}`} />
-              SMART DISPATCH {connStatus === 'offline' && <span className="text-xs text-orange-500 font-bold tracking-widest">(BACKUP BRIDGE)</span>}
-            </h1>
-            <p className="text-gray-400 mt-1 font-medium italic">Scanning University Grid • Satellite Mode</p>
+            <h1 className="text-4xl font-black tracking-tighter uppercase italic">Emergency <span className="text-red-600">Response</span></h1>
+            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2 italic">Global Surveillance Active</p>
           </div>
-
-          <div className="flex bg-gray-900 border border-gray-800 p-1 rounded-2xl">
-            {["active", "resolved", "all"].map(f => (
-              <button key={f} onClick={() => setFilter(f)} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-red-600 text-white shadow-xl' : 'text-gray-500 hover:text-gray-300'}`}>
-                {f}
-              </button>
-            ))}
-          </div>
+          
+          <button 
+            onClick={() => {
+              setAudioEnabled(!audioEnabled);
+              // Unlock audio for Chrome/Edge
+              audioRef.current.play().then(() => audioRef.current.pause());
+            }}
+            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${audioEnabled ? 'bg-red-600 shadow-lg shadow-red-900/40' : 'bg-gray-800'}`}
+          >
+            {audioEnabled ? "🔊 System Voice Live" : "🔈 Unlock Audio"}
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {filteredAlerts.length === 0 ? (
-            <div className="text-center py-32 bg-gray-900/30 border-2 border-dashed border-gray-800 rounded-[40px]">
-              <div className="text-6xl mb-6">🛡️</div>
-              <h2 className="text-2xl font-bold text-gray-500 uppercase tracking-widest">Zone Status: 100% Secure</h2>
-            </div>
-          ) : (
-            filteredAlerts.map(alert => (
-              <div key={alert.id} className={`group relative bg-gray-900 border-2 rounded-[32px] p-8 transition-all ${alert.severity === 'critical' ? 'border-red-600/50' : 'border-gray-800'}`}>
-                <div className="flex flex-col lg:flex-row gap-8">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-2 ${getSeverityStyles(alert.severity)}`}>
-                        {alert.severity || 'General'} Alert
-                      </span>
-                      {alert.status === 'dispatched' && (
-                        <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-blue-600/20 text-blue-400 border-2 border-blue-400/20">
-                          🛡️ Dispatched: {alert.assignedGuard}
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className="text-2xl font-black text-white mb-2 leading-tight uppercase tracking-tight">
-                      {alert.userName ? `${alert.userName}: ` : ''}{alert.message}
-                    </h3>
-                    
-                    <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                      <div className="flex items-center gap-1.5"><span className="text-red-600">📍</span> {alert.location}</div>
-                      <div className="flex items-center gap-1.5">🕒 {alert.timestamp?.toDate ? alert.timestamp.toDate().toLocaleTimeString() : 'Just Now'}</div>
-                    </div>
-
-                    {alert.medicalInfo && (
-                      <div className="mt-6 p-4 bg-red-600/5 border border-red-600/10 rounded-2xl flex items-center gap-6">
-                        <div>
-                          <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Blood Group</p>
-                          <p className="text-white font-black">{alert.medicalInfo.bloodType || 'O+'}</p>
-                        </div>
-                        <div className="w-px h-8 bg-red-600/20" />
-                        <div>
-                          <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Allergies</p>
-                          <p className="text-white font-black text-xs">{alert.medicalInfo.allergies || 'None'}</p>
-                        </div>
-                      </div>
-                    )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* 🚨 ACTIVE INCIDENTS */}
+          <div className="space-y-6">
+            <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-4">
+               <span className="w-12 h-[1px] bg-gray-800" /> Active Threats
+            </h2>
+            {activeAlerts.map(alert => (
+              <div key={alert.id} className="bg-gray-900/80 border border-gray-800 rounded-[40px] p-8 relative overflow-hidden group hover:border-red-600/30 transition-all">
+                <div className={`absolute top-0 left-0 w-2 h-full ${alert.severity === 'critical' ? 'bg-red-600 animate-pulse shadow-[0_0_15px_red]' : 'bg-blue-600'}`} />
+                
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-red-500 bg-red-500/10 px-3 py-1 rounded-lg border border-red-500/20">{alert.severity}</span>
+                    <p className="text-gray-500 text-[9px] font-black uppercase tracking-widest mt-2">{alert.timestamp?.toDate ? alert.timestamp.toDate().toLocaleString() : 'Just now'}</p>
                   </div>
+                  <button onClick={() => handleResolve(alert.id)} className="px-5 py-2.5 bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Close</button>
+                </div>
 
-                  <div className="lg:w-80 flex flex-col gap-4">
-                    {alert.coordinates && (
-                      <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${alert.coordinates.lat},${alert.coordinates.lng}`, '_blank')} className="w-full h-32 rounded-3xl overflow-hidden relative group/map border-2 border-gray-800">
-                        <img src="/assets/dbu_map.png" alt="Map Preview" className="w-full h-full object-cover opacity-40 group-hover/map:opacity-80 transition-opacity" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <span className="bg-white text-black px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.2em]">Live Tracking</span>
-                        </div>
-                      </button>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {alert.status === 'active' ? (
-                        <button onClick={() => handleDispatch(alert.id)} className="col-span-2 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-900/20 transition-all active:scale-95">Dispatch Responder</button>
-                      ) : alert.status === 'dispatched' ? (
-                        <div className="col-span-2 py-4 bg-gray-800 rounded-2xl flex flex-col items-center justify-center border border-gray-700">
-                          <p className="text-[9px] text-gray-500 font-black uppercase mb-1">Estimated Arrival</p>
-                          <p className="text-xl font-black text-blue-400 animate-pulse">{alert.eta || '3:45'}</p>
-                        </div>
-                      ) : null}
-
-                      {alert.status !== 'resolved' && (
-                        <button onClick={() => handleResolve(alert.id)} className="py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-green-900/20">Resolve</button>
-                      )}
-                      <button onClick={() => deleteDoc(doc(db, "alerts", alert.id))} className="py-4 bg-gray-800 text-gray-500 hover:text-red-500 rounded-2xl font-black transition-all">🗑️</button>
-                    </div>
-                  </div>
+                <h3 className="text-xl font-black uppercase italic mb-4 leading-tight">{alert.message}</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="bg-black/30 p-4 rounded-2xl border border-gray-800">
+                      <p className="text-[8px] font-black text-gray-500 uppercase mb-1">Target Identity</p>
+                      <p className="text-xs font-black text-white">{alert.userName || 'Anonymous'}</p>
+                   </div>
+                   <div className="bg-black/30 p-4 rounded-2xl border border-gray-800">
+                      <p className="text-[8px] font-black text-gray-500 uppercase mb-1">Location Node</p>
+                      <p className="text-xs font-black text-white truncate">{alert.location || 'DBU Sector'}</p>
+                   </div>
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
+
+          {/* 📜 RESOLVED LOGS */}
+          <div className="space-y-6 opacity-60 hover:opacity-100 transition-opacity">
+            <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-4">
+               <span className="w-12 h-[1px] bg-gray-800" /> Archive Records
+            </h2>
+            {resolvedAlerts.slice(0, 5).map(alert => (
+               <div key={alert.id} className="bg-gray-900 border border-gray-800 rounded-[32px] p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center text-green-500">✓</div>
+                     <div>
+                        <p className="text-[10px] font-black uppercase">{alert.message}</p>
+                        <p className="text-[8px] text-gray-500 font-black uppercase">Resolved at {new Date(alert.resolvedAt).toLocaleTimeString()}</p>
+                     </div>
+                  </div>
+                  <span className="text-[8px] font-black text-gray-600 uppercase italic">Archived</span>
+               </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
