@@ -64,12 +64,19 @@ export default function Register() {
     setStep(3); // Move to Simulation
 
     try {
-      fetch('http://localhost:5000/send-otp', {
+      const response = await fetch('http://localhost:5000/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ toEmail: email, otpCode: code, userName: name })
       });
-    } catch(err) { console.error("Backend error:", err); }
+      if (!response.ok) throw new Error("Backend Error");
+    } catch(err) { 
+      console.error("Backend error:", err);
+      setError("Email Server Offline: Please ensure the Node.js backend is running on port 5000.");
+      setLoading(false);
+      setStep(1);
+      return;
+    }
 
     let currentStep = 0;
     const interval = setInterval(() => {
