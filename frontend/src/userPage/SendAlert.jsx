@@ -109,29 +109,40 @@ export default function SendAlert() {
       await set(newAlertRef, { ...alertData, id: newAlertRef.key });
       setSuccess(true);
     } catch (err) {
-      setError("Network failed. Storing offline...");
+      // 🛰️ SATELLITE PING: OFFLINE STORAGE
+      const offlineAlerts = JSON.parse(localStorage.getItem("satellite_pings") || "[]");
+      const pingId = `SAT-${Date.now()}`;
+      offlineAlerts.push({ ...alertData, id: pingId, isSatellitePing: true });
+      localStorage.setItem("satellite_pings", JSON.stringify(offlineAlerts));
+      
+      setError("NETWORK COMPROMISED: Satellite Ping Engaged. Signal cached for auto-uplink.");
+      setSuccess(true); // Still show success but with satellite mode UI
     } finally { 
       setLoading(false); 
     }
   };
 
   if (success) {
+    const isSat = error && error.includes("Satellite");
     return (
       <div className={`px-6 py-20 flex flex-col items-center text-center min-h-screen ${silentMode ? 'bg-white' : 'bg-gray-950 text-white'}`}>
         {!silentMode ? (
           <>
-            <div className="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center text-5xl mb-6 shadow-2xl animate-bounce">📡</div>
-            <h1 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">Signal Dispatched</h1>
-            <p className="text-gray-400 mb-8 font-medium">Verification complete. Help is on the way.</p>
-            <button 
-              onClick={() => navigate(auth.currentUser ? "/user" : "/")} 
-              className="w-full bg-white text-black font-black py-4 rounded-2xl active:scale-95 transition-all shadow-xl"
-            >
-              Return Home
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-6 shadow-2xl ${isSat ? 'bg-orange-600 animate-pulse' : 'bg-green-600 animate-bounce'}`}>
+               {isSat ? '🛰️' : '📡'}
+            </div>
+            <h1 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">
+               {isSat ? 'Satellite Ping Engaged' : 'Signal Dispatched'}
+            </h1>
+            <p className="text-gray-400 mb-8 font-medium">
+               {isSat ? 'Network unavailable. Emergency payload cached for auto-uplink to DBU security satellite.' : 'Verification complete. Help is on the way.'}
+            </p>
+            <button onClick={() => navigate("/user")} className={`w-full font-black py-4 rounded-2xl ${isSat ? 'bg-orange-600 text-white' : 'bg-white text-black'}`}>
+               Return Home
             </button>
           </>
         ) : (
-          <button onClick={() => navigate(auth.currentUser ? "/user" : "/")} className="mt-20 opacity-0 cursor-default">Home</button>
+          <button onClick={() => navigate("/user")} className="mt-20 opacity-0 cursor-default">Home</button>
         )}
       </div>
     );

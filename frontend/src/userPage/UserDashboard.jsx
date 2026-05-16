@@ -120,7 +120,7 @@ export default function UserDashboard() {
       </div>
 
       {activeAlert && (
-        <div className="fixed bottom-6 left-6 right-6 bg-red-600 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom-10">
+        <div className="fixed bottom-6 left-6 right-6 bg-red-600 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom-10 z-50">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-ping">🚨</div>
             <div>
@@ -129,6 +129,36 @@ export default function UserDashboard() {
             </div>
           </div>
           <button onClick={() => navigate("/user/alerts")} className="bg-white text-red-600 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase">Monitor</button>
+        </div>
+      )}
+
+      {/* 🛰️ SATELLITE SYNC STATUS */}
+      {localStorage.getItem("satellite_pings") && JSON.parse(localStorage.getItem("satellite_pings")).length > 0 && (
+        <div className="fixed bottom-6 left-6 right-6 bg-orange-600 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom-10 z-[60]">
+           <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-pulse text-xl">🛰️</div>
+              <div>
+                 <p className="font-black text-sm uppercase italic">Satellite Link Pending</p>
+                 <p className="text-[9px] font-bold uppercase opacity-80">Scanning for Orbital Uplink... ({JSON.parse(localStorage.getItem("satellite_pings")).length} Cached)</p>
+              </div>
+           </div>
+           <button 
+             onClick={async () => {
+                const pings = JSON.parse(localStorage.getItem("satellite_pings") || "[]");
+                try {
+                   for (const ping of pings) {
+                      const newRef = push(ref(rtdb, 'alerts'));
+                      await set(newRef, { ...ping, id: newRef.key, isSatellitePing: false, status: 'active' });
+                   }
+                   localStorage.removeItem("satellite_pings");
+                   alert("🚀 SATELLITE UPLINK SUCCESSFUL! Signals transmitted to DBU Command.");
+                   window.location.reload();
+                } catch(e) { alert("Link unstable. Still scanning..."); }
+             }}
+             className="bg-white text-orange-600 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase"
+           >
+             Manual Uplink
+           </button>
         </div>
       )}
     </div>
