@@ -26,6 +26,25 @@
   @apply bg-gray-900/40 backdrop-blur-md border border-white/5;
 }
 
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.slide-in-from-bottom-4 {
+  animation: slideUp 0.5s ease-out forwards;
+}
+
 /* Subtle background grain/noise */
 body::before {
   content: "";

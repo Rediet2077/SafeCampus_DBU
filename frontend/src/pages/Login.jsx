@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,8 +19,30 @@ export default function Login() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/"); // ✅ Redirect to dashboard on success
+      // ✅ Redirect to admin or user dashboard based on email
+      if (email.toLowerCase() === "admin@safecampus.com") {
+        navigate("/admin");
+      } else {
+        navigate("/user");
+      }
     } catch (err) {
+      // 🚨 AUTO-INITIALIZE ADMIN: If admin login fails, try to create it once
+      if (email.toLowerCase() === "admin@safecampus.com" && (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential")) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          await setDoc(doc(db, "users", userCredential.user.uid), {
+            name: "Main Admin",
+            email: email,
+            role: "admin",
+            createdAt: new Date().toISOString()
+          });
+          navigate("/admin");
+          return;
+        } catch (createErr) {
+          console.error("Failed to auto-create admin:", createErr);
+        }
+      }
+
       // Show friendly error messages
       switch (err.code) {
         case "auth/user-not-found":
@@ -50,17 +74,21 @@ export default function Login() {
       <div className="relative w-full max-w-md">
         {/* Logo / Branding */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-xl shadow-red-900/40">
+          <div className={`w-16 h-16 ${email.includes('admin') ? 'bg-red-600' : 'bg-[#6B46C1]'} rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-xl transition-colors`}>
             🛡️
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">SafeCampus</h1>
-          <p className="text-gray-400 text-sm mt-1">Admin Control Center</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {email.toLowerCase() === 'admin@safecampus.com' ? 'Admin Control Center' : 'Student Safety Portal'}
+          </p>
         </div>
 
         {/* Login Card */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
           <h2 className="text-xl font-semibold text-white mb-1">Welcome back</h2>
-          <p className="text-gray-400 text-sm mb-6">Sign in to access the admin panel</p>
+          <p className="text-gray-400 text-sm mb-6">
+            {email.toLowerCase() === 'admin@safecampus.com' ? 'Sign in to access the admin panel' : 'Sign in to stay safe on campus'}
+          </p>
 
           {/* Error Message */}
           {error && (
@@ -116,7 +144,7 @@ export default function Login() {
               id="login-btn"
               type="submit"
               disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-500 disabled:bg-red-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 mt-2"
+              className={`w-full ${email.includes('admin') ? 'bg-red-600 hover:bg-red-500' : 'bg-[#6B46C1] hover:bg-[#553C9A]'} disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 shadow-lg mt-2`}
             >
               {loading ? (
                 <>

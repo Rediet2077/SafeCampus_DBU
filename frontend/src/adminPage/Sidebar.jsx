@@ -2,10 +2,10 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const navItems = [
-  { to: "/", icon: "🏠", label: "Dashboard" },
-  { to: "/alerts", icon: "🔴", label: "Live Alerts" },
-  { to: "/map", icon: "🗺️", label: "Campus Map" },
-  { to: "/settings", icon: "⚙️", label: "Settings" },
+  { to: "/admin", icon: "🏠", label: "Dashboard" },
+  { to: "/admin/alerts", icon: "🔴", label: "Live Alerts" },
+  { to: "/admin/map", icon: "🗺️", label: "Campus Map" },
+  { to: "/admin/settings", icon: "⚙️", label: "Settings" },
 ];
 
 export default function Sidebar() {

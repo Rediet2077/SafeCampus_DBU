@@ -1,24 +1,34 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Layout from "./components/Layout";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Alerts from "./pages/Alerts";
-import CampusMap from "./pages/CampusMap";
-import Settings from "./pages/Settings";
+import Register from "./pages/Register";
+import Landing from "./pages/Landing";
+import Layout from "./adminPage/Layout";
+import Dashboard from "./adminPage/Dashboard";
+import Alerts from "./adminPage/Alerts";
+import CampusMap from "./adminPage/CampusMap";
+import Settings from "./adminPage/Settings";
+import UserLayout from "./userPage/UserLayout";
+import UserDashboard from "./userPage/UserDashboard";
+import SendAlert from "./userPage/SendAlert";
+import MyAlerts from "./userPage/MyAlerts";
+import UserProfile from "./userPage/UserProfile";
+import SafetyTips from "./userPage/SafetyTips";
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public route — Login page */}
+           {/* Public routes */}
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-          {/* Protected routes — require login */}
+          {/* Admin Protected routes */}
           <Route
-            path="/"
+            path="/admin"
             element={
               <ProtectedRoute>
                 <Layout />
@@ -30,6 +40,25 @@ function App() {
             <Route path="map" element={<CampusMap />} />
             <Route path="settings" element={<Settings />} />
           </Route>
+
+          {/* User/Student routes */}
+          <Route
+            path="/user"
+            element={
+              <ProtectedRoute>
+                <UserLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<UserDashboard />} />
+            <Route path="send-alert" element={<SendAlert />} />
+            <Route path="alerts" element={<MyAlerts />} />
+            <Route path="profile" element={<UserProfile />} />
+            <Route path="tips" element={<SafetyTips />} />
+          </Route>
+
+          {/* Catch-all route — redirect to login */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
