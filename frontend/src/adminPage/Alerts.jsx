@@ -278,11 +278,14 @@ export default function Alerts() {
                            </div>
                         ))}
                      </div>
-                     <div className="absolute top-0 right-0 p-4">
-                        <span className="flex items-center gap-2 text-[7px] font-black uppercase tracking-widest text-red-500 bg-red-500/10 px-2 py-1 rounded-full animate-pulse">
-                           <span className="w-1.5 h-1.5 bg-red-500 rounded-full" /> Recording Live
-                        </span>
-                     </div>
+                      <div className="absolute top-0 right-0 p-4">
+                         <span className="flex items-center gap-2 text-[7px] font-black uppercase tracking-widest text-red-500 bg-red-500/10 px-2 py-1 rounded-full animate-pulse">
+                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full" /> Recording Live
+                         </span>
+                      </div>
+                   </div>
+                 )}
+
                  {/* 🛠️ ACTION BUTTONS */}
                  <div className="flex gap-4 mt-8">
                     <button 
