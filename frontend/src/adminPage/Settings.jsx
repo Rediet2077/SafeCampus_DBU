@@ -1,7 +1,22 @@
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export default function Settings() {
   const { user } = useAuth();
+
+  const [preferences, setPreferences] = useState({
+    notifications: localStorage.getItem('safecampus_notifications') !== 'false',
+    sound: localStorage.getItem('safecampus_sound') === 'true',
+    autoArchive: localStorage.getItem('safecampus_archive') !== 'false'
+  });
+
+  const togglePreference = (key) => {
+    setPreferences(prev => {
+      const newState = { ...prev, [key]: !prev[key] };
+      localStorage.setItem(`safecampus_${key}`, newState[key].toString());
+      return newState;
+    });
+  };
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -44,18 +59,21 @@ export default function Settings() {
           
           <div className="space-y-4">
             {[
-              { label: "Real-time Notifications", desc: "Show desktop popups when new alerts arrive", enabled: true },
-              { label: "Notification Sound", desc: "Play a beep when an active alert is received", enabled: false },
-              { label: "Auto-Archive", desc: "Move resolved alerts to history after 24 hours", enabled: true },
+              { id: 'notifications', label: "Real-time Notifications", desc: "Show desktop popups when new alerts arrive" },
+              { id: 'sound', label: "Notification Sound", desc: "Play a beep when an active alert is received" },
+              { id: 'autoArchive', label: "Auto-Archive", desc: "Move resolved alerts to history after 24 hours" },
             ].map((pref) => (
-              <div key={pref.label} className="flex items-center justify-between p-4 rounded-2xl bg-gray-800/30 border border-gray-700/50">
+              <div key={pref.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-800/30 border border-gray-700/50">
                 <div>
                   <p className="text-sm font-bold text-white">{pref.label}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{pref.desc}</p>
                 </div>
-                <div className={`w-12 h-6 rounded-full relative transition-colors duration-200 ${pref.enabled ? 'bg-red-600' : 'bg-gray-700'}`}>
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200 ${pref.enabled ? 'left-7' : 'left-1'}`}></div>
-                </div>
+                <button 
+                  onClick={() => togglePreference(pref.id)}
+                  className={`w-12 h-6 rounded-full relative transition-colors duration-200 focus:outline-none ${preferences[pref.id] ? 'bg-red-600' : 'bg-gray-700'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200 shadow-md ${preferences[pref.id] ? 'left-7' : 'left-1'}`}></div>
+                </button>
               </div>
             ))}
           </div>
