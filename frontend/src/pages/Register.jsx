@@ -189,9 +189,9 @@ export default function Register() {
   const validateStep1 = (e) => {
     e.preventDefault();
     
-    // Email Validation
-    if (!email.toLowerCase().endsWith("@dbu.edu.et")) {
-      setError("SECURITY ALERT: Registration restricted to official @dbu.edu.et university emails.");
+    // Email Validation (Basic format check is handled by HTML5 type="email")
+    if (!email.includes("@")) {
+      setError("Please enter a valid email address.");
       return;
     }
     
@@ -248,8 +248,8 @@ export default function Register() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">University Email</label>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="student@dbu.edu.et" />
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Email Address</label>
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="student@gmail.com" />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Secure Password</label>
