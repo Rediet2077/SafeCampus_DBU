@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, rtdb } from "../firebase";
-import { ref, set } from "firebase/database";
+import { ref, set, get, child } from "firebase/database";
 import { useNavigate, Link } from "react-router-dom";
 
 export default function Register() {
@@ -9,6 +9,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [bloodType, setBloodType] = useState("Unknown");
   const [medicalConditions, setMedicalConditions] = useState("None");
@@ -142,12 +143,29 @@ export default function Register() {
     setLoading(true);
     setError("");
 
+    // ONE-TIME ID REGISTRATION CHECK
+    try {
+      const dbRef = ref(rtdb);
+      const snapshot = await get(child(dbRef, `users`));
+      if (snapshot.exists()) {
+        const users = snapshot.val();
+        const existingIds = Object.values(users).map(u => u.studentId);
+        if (existingIds.includes(studentId)) {
+          setError("SECURITY ALERT: This DBU Student ID is already registered.");
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (dbErr) {
+      console.error("ID Validation error", dbErr);
+    }
+
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name });
 
       await set(ref(rtdb, 'users/' + userCredential.user.uid), {
-        name, displayName: name, email,
+        name, displayName: name, email, studentId,
         emergencyContacts: [emergencyPhone],
         idCardImage: idImage,
         bloodType,
@@ -193,9 +211,15 @@ export default function Register() {
 
           {step === 1 && (
             <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Full Name</label>
-                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="John Doe" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Full Name</label>
+                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="John Doe" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Student ID</label>
+                  <input type="text" required value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="DBU/1234/12" />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">University Email</label>
