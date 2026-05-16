@@ -52,7 +52,31 @@ export default function Register() {
     }
   };
 
-  const [hasRejectedId, setHasRejectedId] = useState(false);
+  const analyzeIdImage = () => {
+    if (!canvasRef.current) return true;
+    const ctx = canvasRef.current.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, 640, 480).data;
+    
+    let colorPixels = 0;
+    const pixelsToSample = (640 * 480) / 4;
+    
+    for (let i = 0; i < imageData.length; i += 16) {
+      const r = imageData[i];
+      const g = imageData[i+1];
+      const b = imageData[i+2];
+      
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const saturation = max === 0 ? 0 : (max - min) / max;
+      
+      if (saturation > 0.15) {
+        colorPixels++;
+      }
+    }
+    
+    const colorRatio = colorPixels / pixelsToSample;
+    return colorRatio > 0.12; // Require at least 12% colorful pixels (Face, Logos, etc)
+  };
 
   const handleStartSimulation = async (e) => {
     e.preventDefault();
@@ -62,15 +86,15 @@ export default function Register() {
     }
 
     // 🤖 STRICT AI ID VERIFICATION SIMULATION
-    if (!hasRejectedId) {
+    const isQualityGood = analyzeIdImage();
+    
+    if (!isQualityGood) {
       setLoading(true);
       setError("");
-      // Simulate AI processing time
       setTimeout(() => {
-        setHasRejectedId(true);
         setLoading(false);
         setIdImage(null); // Force retake
-        setError("AI REJECTION: ID quality is too low or framing is incomplete. The capture MUST clearly show your Photo, Full Name, and University Name. Please align and try again.");
+        setError("AI REJECTION: Missing facial features or university branding. Are you scanning the BACK of the card? The capture MUST show your Photo, Full Name, and DBU Logo.");
       }, 1500);
       return;
     }
