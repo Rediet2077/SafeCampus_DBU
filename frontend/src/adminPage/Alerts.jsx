@@ -193,13 +193,28 @@ export default function Alerts() {
                           </div>
                         )}
                         <div className="space-y-3 flex-1">
-                           <div>
-                              <p className="text-[8px] font-black text-gray-500 uppercase">University Email</p>
-                              <p className="text-[11px] font-black text-white">{alert.userEmail}</p>
+                           <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                 <p className="text-[8px] font-black text-gray-500 uppercase">University Email</p>
+                                 <p className="text-[10px] font-black text-white truncate">{alert.userEmail}</p>
+                              </div>
+                              <div>
+                                 <p className="text-[8px] font-black text-gray-500 uppercase">Emergency Phone</p>
+                                 <p className="text-[10px] font-black text-red-500">{alert.userPhone}</p>
+                              </div>
                            </div>
-                           <div>
-                              <p className="text-[8px] font-black text-gray-500 uppercase">Emergency Phone</p>
-                              <p className="text-[11px] font-black text-red-500">{alert.userPhone}</p>
+                           <div className="bg-red-600/10 border border-red-600/20 p-3 rounded-xl mt-2">
+                              <p className="text-[8px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-1"><span>🏥</span> Medical Fast Response</p>
+                              <div className="flex gap-4">
+                                 <div>
+                                    <p className="text-[7px] text-gray-400 font-bold uppercase">Blood Type</p>
+                                    <p className="text-[11px] font-black text-red-400">{alert.bloodType || 'Unknown'}</p>
+                                 </div>
+                                 <div>
+                                    <p className="text-[7px] text-gray-400 font-bold uppercase">Condition</p>
+                                    <p className="text-[10px] font-black text-white">{alert.medicalConditions || 'None'}</p>
+                                 </div>
+                              </div>
                            </div>
                         </div>
                      </div>

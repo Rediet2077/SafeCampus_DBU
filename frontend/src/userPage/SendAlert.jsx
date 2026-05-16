@@ -37,10 +37,22 @@ export default function SendAlert() {
       .catch(err => console.warn("Camera blocked"));
   }, []);
 
+  const [networkStatus, setNetworkStatus] = useState("");
+
   const handleSendAlert = async () => {
     setLoading(true);
     setError("");
     
+    // 🛡️ SMART CONNECTIVITY SWITCHING SIMULATION
+    setNetworkStatus("Scanning Networks...");
+    await new Promise(r => setTimeout(r, 600));
+    setNetworkStatus("WiFi Unstable. Rerouting...");
+    await new Promise(r => setTimeout(r, 800));
+    setNetworkStatus("Mobile Data Jammed. Switching to Bluetooth Mesh...");
+    await new Promise(r => setTimeout(r, 1000));
+    setNetworkStatus("Bluetooth Relay Connected. Transmitting Payload...");
+    await new Promise(r => setTimeout(r, 600));
+
     // 🛡️ STEP 1: FETCH FULL USER PROFILE
     let userProfile = null;
     try {
@@ -67,6 +79,7 @@ export default function SendAlert() {
         setError("Invalid Location: You must be on the DBU Campus to trigger this SOS.");
         setLoading(false);
         setShowConfirm(false);
+        setNetworkStatus("");
         return;
       }
     } catch (e) { console.warn("GPS Unavailable"); }
@@ -90,6 +103,8 @@ export default function SendAlert() {
       userEmail: userProfile?.email || auth.currentUser?.email || "No Email",
       userPhone: userProfile?.emergencyContacts ? userProfile.emergencyContacts[0] : "N/A",
       idCardImage: userProfile?.idCardImage || null,
+      bloodType: userProfile?.bloodType || "Unknown",
+      medicalConditions: userProfile?.medicalConditions || "None",
       trustedCircle: userProfile?.trustedCircle || [],
       severity: type,
       message: description || `EMERGENCY: ${type.toUpperCase()}`,
@@ -119,6 +134,7 @@ export default function SendAlert() {
       setSuccess(true); // Still show success but with satellite mode UI
     } finally { 
       setLoading(false); 
+      setNetworkStatus("");
     }
   };
 
@@ -199,21 +215,35 @@ export default function SendAlert() {
       {/* 🛡️ CONFIRMATION MODAL */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-6">
-          <div className="bg-gray-900 border border-gray-800 rounded-[48px] p-10 w-full max-w-sm text-center">
+          <div className="bg-gray-900 border border-gray-800 rounded-[48px] p-10 w-full max-w-sm text-center relative overflow-hidden">
+            {loading && <div className="absolute inset-0 bg-red-600/10 animate-pulse pointer-events-none" />}
+            
             <span className="text-6xl mb-6 block">⚠</span>
             <h2 className="text-2xl font-black uppercase italic mb-4">Emergency Confirmation</h2>
-            <p className="text-gray-400 text-sm mb-8 font-medium">Are you sure you want to trigger a campus-wide alert? Fake reports are punishable.</p>
-            <div className="space-y-4">
+            
+            {!loading ? (
+              <p className="text-gray-400 text-sm mb-8 font-medium">Are you sure you want to trigger a campus-wide alert? Fake reports are punishable.</p>
+            ) : (
+              <div className="mb-8 p-4 bg-black/50 rounded-2xl border border-gray-800">
+                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest animate-pulse">{networkStatus}</p>
+                 <div className="h-1 w-full bg-gray-800 mt-3 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 animate-[pulse_1s_ease-in-out_infinite] w-full" />
+                 </div>
+              </div>
+            )}
+
+            <div className="space-y-4 relative z-10">
               <button 
                 onClick={handleSendAlert}
                 disabled={loading}
-                className="w-full bg-red-600 py-5 rounded-2xl font-black uppercase tracking-widest text-xs animate-pulse"
+                className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${loading ? 'bg-gray-800 text-gray-500' : 'bg-red-600 animate-pulse shadow-xl shadow-red-900/40'}`}
               >
                 {loading ? 'Transmitting...' : 'YES, SEND ALERT'}
               </button>
               <button 
                 onClick={() => setShowConfirm(false)}
-                className="w-full bg-gray-800 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] text-gray-400"
+                disabled={loading}
+                className="w-full bg-transparent py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] text-gray-500 hover:text-white"
               >
                 Cancel
               </button>

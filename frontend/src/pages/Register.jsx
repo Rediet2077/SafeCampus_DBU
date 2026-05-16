@@ -10,6 +10,8 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [bloodType, setBloodType] = useState("Unknown");
+  const [medicalConditions, setMedicalConditions] = useState("None");
   const [idImage, setIdImage] = useState(null);
   const [otp, setOtp] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
@@ -108,6 +110,8 @@ export default function Register() {
         name, displayName: name, email,
         emergencyContacts: [emergencyPhone],
         idCardImage: idImage,
+        bloodType,
+        medicalConditions,
         isVerified: true,
         trustScore: 100,
         createdAt: new Date().toISOString(),
@@ -161,9 +165,17 @@ export default function Register() {
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Secure Password</label>
                 <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="••••••••" />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-1">Emergency Phone</label>
-                <input type="tel" required value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} className="w-full bg-red-500/5 border border-red-500/20 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="+251..." />
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Blood Type</label>
+                   <select value={bloodType} onChange={(e) => setBloodType(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all appearance-none">
+                     <option>Unknown</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+                   </select>
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Medical Info</label>
+                   <input type="text" value={medicalConditions} onChange={(e) => setMedicalConditions(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="e.g. Asthma, Allergies..." />
+                 </div>
               </div>
               <button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-red-900/20 transition-all uppercase text-[11px] tracking-[0.2em] mt-4 active:scale-[0.98]">Proceed to ID Scan ➔</button>
             </form>
