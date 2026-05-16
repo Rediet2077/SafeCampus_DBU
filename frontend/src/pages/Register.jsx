@@ -167,14 +167,18 @@ export default function Register() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Blood Type</label>
+                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 flex justify-between">
+                     Blood Type <span className="opacity-50">(Optional)</span>
+                   </label>
                    <select value={bloodType} onChange={(e) => setBloodType(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all appearance-none">
                      <option>Unknown</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
                    </select>
                  </div>
                  <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Medical Info</label>
-                   <input type="text" value={medicalConditions} onChange={(e) => setMedicalConditions(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="e.g. Asthma, Allergies..." />
+                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 flex justify-between">
+                     Medical Info <span className="opacity-50">(Optional)</span>
+                   </label>
+                   <input type="text" value={medicalConditions} onChange={(e) => setMedicalConditions(e.target.value)} className="w-full bg-gray-800 border border-gray-700 text-white rounded-2xl px-6 py-4 text-sm focus:border-red-600 outline-none transition-all" placeholder="e.g. Asthma..." />
                  </div>
               </div>
               <button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-red-900/20 transition-all uppercase text-[11px] tracking-[0.2em] mt-4 active:scale-[0.98]">Proceed to ID Scan ➔</button>
