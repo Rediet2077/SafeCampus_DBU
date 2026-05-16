@@ -97,7 +97,7 @@ export default function UserDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 mb-12">
+      <div className="grid grid-cols-1 gap-4 mb-6">
         <Link 
           to="/user/send-alert" 
           className="bg-red-600 p-10 rounded-[48px] shadow-2xl shadow-red-900/30 flex flex-col items-center justify-center group hover:scale-[1.02] transition-all border-8 border-red-100"
@@ -105,6 +105,19 @@ export default function UserDashboard() {
           <span className="text-6xl mb-4 group-hover:scale-110 transition-transform">🆘</span>
           <span className="text-white font-black text-2xl uppercase tracking-tighter italic">Trigger SOS</span>
           <span className="text-white/60 font-bold text-[10px] uppercase mt-2 tracking-[0.2em]">Press in immediate danger</span>
+        </Link>
+        <Link 
+          to="/user/find-help" 
+          className="bg-gray-900 p-8 rounded-[40px] flex items-center justify-between group hover:bg-black transition-all border border-gray-800"
+        >
+           <div className="flex items-center gap-4">
+              <span className="text-4xl group-hover:rotate-12 transition-all">📍</span>
+              <div>
+                 <p className="text-white font-black text-lg uppercase italic leading-none">Find Nearest Help</p>
+                 <p className="text-gray-500 text-[8px] font-black uppercase tracking-widest mt-1">Scan Guards, Clinics & Safe Zones</p>
+              </div>
+           </div>
+           <span className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white font-black">→</span>
         </Link>
       </div>
 

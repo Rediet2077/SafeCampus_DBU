@@ -16,6 +16,7 @@ import SendAlert from "./userPage/SendAlert";
 import MyAlerts from "./userPage/MyAlerts";
 import UserProfile from "./userPage/UserProfile";
 import SafetyTips from "./userPage/SafetyTips";
+import FindHelp from "./userPage/FindHelp";
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
             <Route path="alerts" element={<MyAlerts />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="tips" element={<SafetyTips />} />
+            <Route path="find-help" element={<FindHelp />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />
