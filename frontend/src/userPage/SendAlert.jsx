@@ -41,7 +41,17 @@ export default function SendAlert() {
     setLoading(true);
     setError("");
     
-    // 🛡️ STEP 1: CAPTURE GPS
+    // 🛡️ STEP 1: FETCH FULL USER PROFILE
+    let userProfile = null;
+    try {
+      const userRef = ref(rtdb, `users/${auth.currentUser?.uid}`);
+      const snapshot = await new Promise((res) => {
+        const unsub = onValue(userRef, (s) => { unsub(); res(s); });
+      });
+      userProfile = snapshot.val();
+    } catch (e) { console.warn("Profile fetch fail"); }
+
+    // 🛡️ STEP 2: CAPTURE GPS
     let coords = null;
     try {
       coords = await new Promise((resolve, reject) => {
@@ -52,17 +62,14 @@ export default function SendAlert() {
         );
       });
 
-      // 📍 LOCATION AUTHENTICITY CHECK
       const dist = getDistance(coords.lat, coords.lng, DBU_COORDS.lat, DBU_COORDS.lng);
-      if (dist > 10) { // If further than 10km from DBU
+      if (dist > 10) {
         setError("Invalid Location: You must be on the DBU Campus to trigger this SOS.");
         setLoading(false);
         setShowConfirm(false);
         return;
       }
-    } catch (e) { 
-      console.warn("GPS Unavailable");
-    }
+    } catch (e) { console.warn("GPS Unavailable"); }
 
     // 📸 SILENT FRONT CAMERA SNAPSHOT
     let photo = null;
@@ -79,16 +86,19 @@ export default function SendAlert() {
     const alertData = {
       userType: "registered",
       userId: auth.currentUser?.uid || "anonymous",
-      userName: auth.currentUser?.displayName || "Student",
+      userName: userProfile?.name || auth.currentUser?.displayName || "Student",
+      userEmail: userProfile?.email || auth.currentUser?.email || "Unknown",
+      userPhone: userProfile?.emergencyContacts ? userProfile.emergencyContacts[0] : "N/A",
+      idCardImage: userProfile?.idCardImage || null,
       severity: type,
       message: description || `EMERGENCY: ${type.toUpperCase()}`,
       location: location,
       status: "active",
       silent: silentMode,
-      trustScore: 98,
+      trustScore: userProfile?.trustScore || 100,
       timestamp: Date.now(),
       coordinates: coords,
-      evidencePhoto: photo, // Stored for admin verification
+      evidencePhoto: photo,
       isVerified: !!coords
     };
 

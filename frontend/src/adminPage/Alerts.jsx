@@ -138,16 +138,40 @@ export default function Alerts() {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mb-6">
                    <div className="bg-black/30 p-4 rounded-2xl border border-gray-800">
                       <p className="text-[8px] font-black text-gray-500 uppercase mb-1">Target Identity</p>
                       <p className="text-xs font-black text-white">{alert.userName || 'Anonymous'}</p>
+                      {alert.userType === "registered" && <p className="text-[7px] text-green-500 font-black uppercase mt-1">✓ DBU VERIFIED</p>}
                    </div>
                    <div className="bg-black/30 p-4 rounded-2xl border border-gray-800">
                       <p className="text-[8px] font-black text-gray-500 uppercase mb-1">Location Node</p>
                       <p className="text-xs font-black text-white truncate">{alert.location || 'DBU Sector'}</p>
                    </div>
                 </div>
+
+                {alert.userType === "registered" && (
+                  <div className="bg-gray-800/20 rounded-[32px] p-6 border border-gray-800/50 mb-4">
+                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Verified Profile Data</p>
+                     <div className="flex gap-6 items-center">
+                        {alert.idCardImage && (
+                          <div onClick={() => setZoomPhoto(alert.idCardImage)} className="w-20 h-28 bg-black rounded-xl overflow-hidden border border-gray-700 cursor-zoom-in group-hover:border-red-600/30 transition-all">
+                             <img src={alert.idCardImage} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="space-y-3 flex-1">
+                           <div>
+                              <p className="text-[8px] font-black text-gray-500 uppercase">University Email</p>
+                              <p className="text-[11px] font-black text-white">{alert.userEmail}</p>
+                           </div>
+                           <div>
+                              <p className="text-[8px] font-black text-gray-500 uppercase">Emergency Phone</p>
+                              <p className="text-[11px] font-black text-red-500">{alert.userPhone}</p>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
