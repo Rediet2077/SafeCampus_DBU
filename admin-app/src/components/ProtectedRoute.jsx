@@ -24,7 +24,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   // Admin-only check
   if (adminOnly && !user.isAdmin) {
     console.warn("Security Alert: Unauthorized access attempt to Admin Dashboard.");
-    return <Navigate to="/user" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // Logged in → show the page
