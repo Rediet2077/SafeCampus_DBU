@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [connStatus, setConnStatus] = useState("connecting");
   const [actionId, setActionId] = useState(null);
   const [zoomPhoto, setZoomPhoto] = useState(null);
+  const [hoveredAlert, setHoveredAlert] = useState(null);
   const audioRef = useRef(new Audio(ALARM_SOUND));
   const announcedIds = useRef(new Set());
 
