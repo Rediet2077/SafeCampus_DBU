@@ -17,9 +17,8 @@ function App() {
       <AuthProvider>
         <Routes>
            {/* Public routes */}
-          <Route path="/" element={<Landing />} />
+          {/* Public routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
 
           {/* Admin Protected routes (NOW AT ROOT) */}
           <Route
