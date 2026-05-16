@@ -47,15 +47,31 @@ export default function Register() {
       canvasRef.current.width = 640;
       canvasRef.current.height = 480;
       context.drawImage(videoRef.current, 0, 0, 640, 480);
-      const data = canvasRef.current.toDataURL('image/jpeg', 0.7);
+      const data = canvasRef.current.toDataURL('image/jpeg', 0.9); // Increased quality for AI processing
       setIdImage(data);
     }
   };
+
+  const [hasRejectedId, setHasRejectedId] = useState(false);
 
   const handleStartSimulation = async (e) => {
     e.preventDefault();
     if (!idImage) {
       setError("Please scan your ID to proceed.");
+      return;
+    }
+
+    // 🤖 STRICT AI ID VERIFICATION SIMULATION
+    if (!hasRejectedId) {
+      setLoading(true);
+      setError("");
+      // Simulate AI processing time
+      setTimeout(() => {
+        setHasRejectedId(true);
+        setLoading(false);
+        setIdImage(null); // Force retake
+        setError("AI REJECTION: ID quality is too low or framing is incomplete. The capture MUST clearly show your Photo, Full Name, and University Name. Please align and try again.");
+      }, 1500);
       return;
     }
     
