@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { auth } from "../firebase";
+import { sendPasswordResetEmail } from "firebase/auth";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -9,6 +11,7 @@ export default function Settings() {
     sound: localStorage.getItem('safecampus_sound') === 'true',
     autoArchive: localStorage.getItem('safecampus_archive') !== 'false'
   });
+  const [resetMsg, setResetMsg] = useState("");
 
   const togglePreference = (key) => {
     setPreferences(prev => {
@@ -38,7 +41,7 @@ export default function Settings() {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Account Email</label>
                 <div className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-gray-300 text-sm">
-                  {user?.email || "admin@safecampus.com"}
+                  {user === undefined ? "Loading..." : user?.email || "No Email Associated"}
                 </div>
               </div>
               <div>
@@ -86,9 +89,21 @@ export default function Settings() {
           </h2>
           <p className="text-gray-500 text-xs mb-6">Security protocols for the command center.</p>
           
-          <button className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-bold rounded-xl transition-all active:scale-95 border border-gray-700">
-            Change Password
+          <button 
+            onClick={async () => {
+              if (!user?.email) return;
+              try {
+                await sendPasswordResetEmail(auth, user.email);
+                setResetMsg("Reset email sent! Please check your inbox.");
+              } catch (e) {
+                setResetMsg("Failed to send reset email.");
+              }
+            }}
+            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-bold rounded-xl transition-all active:scale-95 border border-gray-700"
+          >
+            Send Password Reset
           </button>
+          {resetMsg && <p className="text-[10px] font-black uppercase text-red-500 mt-4 tracking-widest">{resetMsg}</p>}
         </div>
       </div>
 
