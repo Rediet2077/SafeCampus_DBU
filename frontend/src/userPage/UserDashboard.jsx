@@ -1,155 +1,112 @@
-import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { auth, rtdb } from "../firebase";
+import { ref, onValue, query, limitToLast } from "firebase/database";
 
 export default function UserDashboard() {
-  const { user } = useAuth();
+  const [activeAlert, setActiveAlert] = useState(null);
+  const [userName, setUserName] = useState("Student");
+  const [safetyStatus, setSafetyStatus] = useState({ level: "Secure", color: "green", message: "All campus sectors are currently under normal surveillance." });
   const navigate = useNavigate();
-  const [isHolding, setIsHolding] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [sent, setSent] = useState(false);
-  const [isTriggering, setIsTriggering] = useState(false);
-  const timerRef = useRef(null);
 
-  const HOLD_TIME = 2000;
-
-  const startHold = (e) => {
-    e.preventDefault();
-    setIsHolding(true);
-    const start = Date.now();
-    timerRef.current = setInterval(() => {
-      const elapsed = Date.now() - start;
-      const p = Math.min((elapsed / HOLD_TIME) * 100, 100);
-      setProgress(p);
-
-      if (elapsed >= HOLD_TIME) {
-        clearInterval(timerRef.current);
-        triggerEmergency();
-      }
-    }, 50);
-  };
-
-  const endHold = () => {
-    setIsHolding(false);
-    setProgress(0);
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const triggerEmergency = async () => {
-    if (isTriggering) return;
-    setIsTriggering(true);
-
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-
-    // 🛡️ STEP 1: CAPTURE GPS WITH 2s TIMEOUT (Prevents Hanging)
-    let coords = null;
-    try {
-      coords = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("GPS_TIMEOUT")), 2000);
-        navigator.geolocation.getCurrentPosition(
-          (pos) => { clearTimeout(timeout); resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-          (err) => { clearTimeout(timeout); reject(err); },
-          { enableHighAccuracy: false, timeout: 2000 }
-        );
-      });
-    } catch (err) {
-      console.warn("Using student profile address (GPS timeout).");
+  useEffect(() => {
+    if (auth.currentUser) {
+      setUserName(auth.currentUser.displayName || "Student");
     }
 
-    try {
-      const alertData = {
-        userType: "registered",
-        userId: user?.uid || "anonymous",
-        userName: user?.displayName || user?.email?.split('@')[0] || "Student",
-        message: "🆘 HIGH-PRIORITY STUDENT EMERGENCY: IMMEDIATE HELP NEEDED!",
-        location: coords ? `GPS: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : "Student Dashboard",
-        coordinates: coords,
-        status: "active",
-        severity: "critical",
-        timestamp: new Date().toISOString(),
-        medicalInfo: { bloodType: "O+", allergies: "None" } // Default simulation
-      };
-
-      // 🛡️ STEP 2: SEND TO FIREBASE WITH 2s TIMEOUT
-      try {
-        const fbPromise = addDoc(collection(db, "alerts"), { ...alertData, timestamp: serverTimestamp() });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000));
-
-        await Promise.race([fbPromise, timeoutPromise]);
-        setSent(true);
-      } catch (err) {
-        // Fail-Safe Local Bridge
-        const offlineAlerts = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-        offlineAlerts.push({ ...alertData, id: "offline_" + Date.now() });
-        localStorage.setItem("offline_alerts", JSON.stringify(offlineAlerts));
-        window.dispatchEvent(new Event("storage"));
-        setSent(true);
+    // 📡 LATEST SAFETY BROADCAST (From Admin - RTDB)
+    const safetyRef = ref(rtdb, 'system_status/current');
+    const unsubSafety = onValue(safetyRef, (snap) => {
+      const data = snap.val();
+      if (data) {
+        setSafetyStatus(data);
+        if (data.level === "Critical") {
+           console.log(`[EMAIL DISPATCH] To ${auth.currentUser?.email}: DANGER ZONE ALERT - ${data.message}`);
+        }
       }
-    } catch (err) {
-      console.error("Emergency trigger failed:", err);
-    } finally {
-      setIsTriggering(false);
-      setIsHolding(false);
-      setProgress(0);
-    }
-  };
+    });
 
-  const menuItems = [
-    { id: "send", label: "Report Case", icon: "📋", color: "bg-blue-50 text-blue-600 border-blue-100", route: "/user/send-alert" },
-    { id: "my-alerts", label: "History", icon: "⏳", color: "bg-purple-50 text-purple-600 border-purple-100", route: "/user/alerts" },
-    { id: "tips", label: "Safety Tips", icon: "💡", color: "bg-green-50 text-green-600 border-green-100", route: "/user/tips" },
-    { id: "profile", label: "Profile", icon: "👤", color: "bg-orange-50 text-orange-600 border-orange-100", route: "/user/profile" },
-  ];
+    // 🚨 ACTIVE USER ALERT (Check recent alerts on RTDB)
+    const alertsRef = ref(rtdb, 'alerts');
+    const unsubAlert = onValue(alertsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Find latest active alert for this user
+        const userAlerts = Object.keys(data)
+          .map(key => ({ id: key, ...data[key] }))
+          .filter(a => a.userId === auth.currentUser?.uid && (a.status === "active" || a.status === "dispatched"))
+          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-  if (sent) {
-    return (
-      <div className="px-6 py-20 flex flex-col items-center text-center animate-in zoom-in duration-500 bg-red-600 min-h-screen text-white">
-        <div className="w-24 h-24 bg-white text-red-600 rounded-full flex items-center justify-center text-5xl mb-6 shadow-xl animate-pulse">🚨</div>
-        <h1 className="text-3xl font-black mb-2 tracking-tighter uppercase italic">Signal Locked</h1>
-        <p className="text-white/80 mb-8 max-w-[250px] font-medium">Security is navigating to your spot. Stay where you are.</p>
-        <button onClick={() => setSent(false)} className="w-full bg-white text-red-600 font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-transform">I AM SAFE NOW</button>
-      </div>
-    );
-  }
+        if (userAlerts.length > 0) {
+          setActiveAlert(userAlerts[0]);
+        } else {
+          setActiveAlert(null);
+        }
+      } else {
+        setActiveAlert(null);
+      }
+    });
+
+    return () => { unsubSafety(); unsubAlert(); };
+  }, []);
 
   return (
-    <div className="px-6 py-8 animate-in slide-in-from-bottom-4 duration-500 bg-white min-h-screen">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Hi, {user?.displayName || 'Student'} 👋</h1>
-          <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Command Center Live</p>
-        </div>
-        <div className="w-12 h-12 bg-red-600/10 rounded-2xl flex items-center justify-center text-2xl border border-red-600/20 shadow-inner">🛡️</div>
+    <div className="px-6 py-10 bg-white min-h-screen font-sans">
+      <div className="mb-10">
+        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic uppercase leading-none">
+          Welcome back, <br /><span className="text-red-600">{userName}</span>
+        </h1>
+        <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Identity Verified • DBU Secure Grid</p>
       </div>
 
-      <div className="mb-10 flex flex-col items-center bg-red-50 rounded-[40px] p-10 border-2 border-red-100 relative overflow-hidden shadow-inner">
-        <div className="absolute top-0 right-0 p-4 opacity-5 text-8xl -rotate-12">🆘</div>
-        <p className="text-red-600 font-black text-[11px] uppercase tracking-[0.3em] mb-8 relative z-10">{isHolding ? 'HOLDING...' : 'HOLD 2S FOR EMERGENCY'}</p>
-        <button 
-          onMouseDown={startHold} onMouseUp={endHold} onMouseLeave={endHold} onTouchStart={startHold} onTouchEnd={endHold}
-          disabled={isTriggering} 
-          className={`relative w-48 h-48 rounded-full flex items-center justify-center transition-all duration-300 z-10 select-none ${isHolding ? 'scale-105 shadow-2xl' : 'scale-100 shadow-xl'}`}
+      {/* 🛡️ NEW BENEFIT: LIVE CAMPUS SAFETY STATUS */}
+      <div className={`p-8 rounded-[40px] border-2 transition-all duration-500 mb-8 ${safetyStatus.level === 'Critical' ? 'bg-red-50 border-red-200 shadow-xl shadow-red-900/10' : 'bg-gray-50 border-gray-100'}`}>
+         <div className="flex justify-between items-start mb-6">
+            <div className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${safetyStatus.level === 'Critical' ? 'bg-red-600 text-white animate-pulse' : 'bg-green-600 text-white'}`}>
+               Campus Status: {safetyStatus.level}
+            </div>
+            <span className="text-2xl">{safetyStatus.level === 'Critical' ? '⚠️' : '🛡️'}</span>
+         </div>
+         <h3 className={`text-xl font-black uppercase italic mb-2 ${safetyStatus.level === 'Critical' ? 'text-red-900' : 'text-gray-900'}`}>{safetyStatus.message}</h3>
+         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            {safetyStatus.level === 'Critical' ? '📧 Email notification sent to your registered address' : 'Normal surveillance active in all sectors'}
+         </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 mb-12">
+        <Link 
+          to="/user/send-alert" 
+          className="bg-red-600 p-10 rounded-[48px] shadow-2xl shadow-red-900/30 flex flex-col items-center justify-center group hover:scale-[1.02] transition-all border-8 border-red-100"
         >
-          <svg className="absolute inset-0 w-full h-full -rotate-90">
-            <circle cx="96" cy="96" r="88" fill="transparent" stroke="#fee2e2" strokeWidth="12" />
-            <circle cx="96" cy="96" r="88" fill="transparent" stroke="#dc2626" strokeWidth="12" strokeDasharray="553" strokeDashoffset={553 - (553 * progress) / 100} strokeLinecap="round" className="transition-all duration-75" />
-          </svg>
-          <div className={`w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-300 ${isHolding ? 'bg-red-700 shadow-red-900/40' : 'bg-red-600 shadow-red-900/20 hover:bg-red-500'}`}>
-             {isTriggering ? <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" /> : <><span className="text-white font-black text-sm tracking-[0.2em] mb-1">SOS</span><span className="text-4xl animate-bounce">🚨</span></>}
-          </div>
-        </button>
+          <span className="text-6xl mb-4 group-hover:scale-110 transition-transform">🆘</span>
+          <span className="text-white font-black text-2xl uppercase tracking-tighter italic">Trigger SOS</span>
+          <span className="text-white/60 font-bold text-[10px] uppercase mt-2 tracking-[0.2em]">Press in immediate danger</span>
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {menuItems.map((item) => (
-          <button key={item.id} onClick={() => navigate(item.route)} className={`flex flex-col items-start p-6 rounded-[32px] border transition-all hover:scale-[1.02] active:scale-95 ${item.color} shadow-sm`}>
-            <span className="text-3xl mb-4 bg-white/50 w-12 h-12 flex items-center justify-center rounded-2xl shadow-inner">{item.icon}</span>
-            <span className="font-black text-xs uppercase tracking-widest">{item.label}</span>
-          </button>
-        ))}
+        <Link to="/user/alerts" className="bg-gray-50 p-6 rounded-[32px] border border-gray-100 flex flex-col items-center gap-3">
+          <span className="text-2xl">📡</span>
+          <span className="text-[9px] font-black text-gray-900 uppercase tracking-widest text-center">Alert Tracker</span>
+        </Link>
+        <Link to="/user/tips" className="bg-gray-50 p-6 rounded-[32px] border border-gray-100 flex flex-col items-center gap-3">
+          <span className="text-2xl">💡</span>
+          <span className="text-[9px] font-black text-gray-900 uppercase tracking-widest text-center">Safety Tips</span>
+        </Link>
       </div>
+
+      {activeAlert && (
+        <div className="fixed bottom-6 left-6 right-6 bg-red-600 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom-10">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-ping">🚨</div>
+            <div>
+               <p className="font-black text-sm uppercase italic">Alert Broadcast Active</p>
+               <p className="text-[9px] font-bold uppercase opacity-80">Unit Response: {activeAlert.status}</p>
+            </div>
+          </div>
+          <button onClick={() => navigate("/user/alerts")} className="bg-white text-red-600 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase">Monitor</button>
+        </div>
+      )}
     </div>
   );
 }

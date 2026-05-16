@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth, db } from "../firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { auth, rtdb } from "../firebase";
+import { ref, set } from "firebase/database";
 import { useNavigate, Link } from "react-router-dom";
 
 export default function Register() {
@@ -17,7 +17,7 @@ export default function Register() {
   const [simStep, setSimStep] = useState(0); // 0: Start, 1: Connecting, 2: Encrypting, 3: Dispatched
   const navigate = useNavigate();
 
-  const handleSendOtp = (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     if (!email || !password || !name || !emergencyPhone) {
       setError("Please fill all security fields");
@@ -29,8 +29,18 @@ export default function Register() {
     setGeneratedOtp(code);
     setStep(2); // Move to Simulation
 
+    // 🔥 ACTUALLY SEND THE EMAIL VIA LOCAL BACKEND
+    try {
+      fetch('http://localhost:5000/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toEmail: email, otpCode: code, userName: name })
+      });
+    } catch(err) {
+      console.error("Backend error:", err);
+    }
+
     // 🚀 HIGH-FIDELITY EMAIL DISPATCH SIMULATION
-    // This makes the demo look 100% real without needing EmailJS keys
     let currentStep = 0;
     const interval = setInterval(() => {
       currentStep++;
@@ -46,22 +56,38 @@ export default function Register() {
   const handleVerifyAndRegister = async (e) => {
     e.preventDefault();
     if (otp !== generatedOtp) {
-      setError("Invalid security seal. Verification failed.");
+      setError("Invalid code. Please check the code in your email.");
       return;
     }
 
     setLoading(true);
+    setError("");
+
     try {
+      // Step 1: Create Firebase Auth user (this is fast)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name });
-      await setDoc(doc(db, "users", userCredential.user.uid), {
+
+      // Step 2: Save to Realtime Database (FREE, instant)
+      await set(ref(rtdb, 'users/' + userCredential.user.uid), {
         name, displayName: name, email,
         emergencyContacts: [emergencyPhone],
         trustScore: 100,
         createdAt: new Date().toISOString(),
       });
+
+      // Step 3: Navigate
       navigate("/user");
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
+    } catch (err) {
+      if (err.code === "auth/email-already-in-use") {
+        setError("This email is already registered. Please log in instead.");
+      } else if (err.code === "auth/weak-password") {
+        setError("Password must be at least 6 characters.");
+      } else {
+        setError(err.message || "Registration failed. Try again.");
+      }
+      setLoading(false);
+    }
   };
 
   return (
@@ -122,18 +148,29 @@ export default function Register() {
           )}
 
           {step === 3 && (
-            <form onSubmit={handleVerifyAndRegister} className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+            <form onSubmit={handleVerifyAndRegister} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                <div className="text-center">
-                  <div className="text-5xl mb-4 animate-bounce">🗝️</div>
-                  <h2 className="text-xl font-black text-white uppercase italic">Enter Security Seal</h2>
-                  <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-2">Code sent to: <span className="text-white">{email}</span></p>
-                  <div className="mt-4 p-3 bg-red-600/10 border border-red-600/30 rounded-xl">
-                     <p className="text-[10px] font-black text-red-600 uppercase">Demo Bypass: {generatedOtp}</p>
-                  </div>
+                  <div className="text-5xl mb-4">📧</div>
+                  <h2 className="text-xl font-black text-white uppercase italic">Check Your Email</h2>
+                  <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-2">6-digit code sent to:</p>
+                  <p className="text-white text-sm font-black mt-1">{email}</p>
+                  <p className="text-green-500 text-[9px] font-black uppercase tracking-widest mt-4">✓ Email dispatched. Check inbox & spam folder.</p>
                </div>
                <input type="text" required maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} className="w-full bg-gray-800 border-2 border-gray-700 text-white rounded-3xl px-5 py-6 text-4xl font-black tracking-[0.5em] text-center outline-none focus:border-red-600 transition-all shadow-inner" placeholder="000000" />
-               <button type="submit" disabled={loading} className="w-full bg-red-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-red-900/20 uppercase text-[11px] tracking-widest active:scale-[0.98]">Authorize Connection</button>
-               <button type="button" onClick={() => setStep(1)} className="w-full text-gray-500 hover:text-white font-black text-[9px] uppercase tracking-widest">Back to Registry</button>
+               <button type="submit" disabled={loading} className="w-full bg-red-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-red-900/20 uppercase text-[11px] tracking-widest active:scale-[0.98]">{loading ? "Verifying..." : "Authorize Connection"}</button>
+               <div className="flex gap-3">
+                  <button type="button" onClick={() => {
+                    const code = Math.floor(100000 + Math.random() * 900000).toString();
+                    setGeneratedOtp(code);
+                    fetch('http://localhost:5000/send-otp', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ toEmail: email, otpCode: code, userName: name })
+                    });
+                    alert("New code sent! Check your email.");
+                  }} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all">📧 Resend Code</button>
+                  <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all">← Change Email</button>
+               </div>
             </form>
           )}
 

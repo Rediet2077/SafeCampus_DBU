@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { db } from "../firebase";
+import { rtdb } from "../firebase";
+import { ref, onValue } from "firebase/database";
 
 const dbuLocations = [
   { name: "Administration Block", coords: { top: "20%", left: "45%" } },
@@ -19,10 +19,17 @@ export default function CampusMap() {
   const [selectedAlert, setSelectedAlert] = useState(null);
 
   useEffect(() => {
-    const q = query(collection(db, "alerts"), where("status", "==", "active"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setActiveAlerts(alerts);
+    const alertsRef = ref(rtdb, 'alerts');
+    const unsubscribe = onValue(alertsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const alerts = Object.keys(data)
+          .map(key => ({ id: key, ...data[key] }))
+          .filter(a => a.status === "active");
+        setActiveAlerts(alerts);
+      } else {
+        setActiveAlerts([]);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -45,42 +52,46 @@ export default function CampusMap() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1">
         {/* Map View */}
         <div className="lg:col-span-3 relative bg-gray-900 rounded-[32px] overflow-hidden border border-gray-800 shadow-2xl min-h-[500px]">
-          <img 
-            src="/assets/dbu_map.png" 
-            alt="DBU Map" 
-            className="w-full h-full object-cover opacity-60"
-          />
+          <iframe 
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m13!1m3!1d15739.066421115264!2d39.5222!3d9.6823!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1647f38df483665b%3A0xe72688820015f8a0!2sDebre%20Berhan%20University!5e0!3m2!1sen!2set!4v1715870000000!5m2!1sen!2set" 
+            className="w-full h-full border-0 grayscale invert contrast-125 opacity-70"
+            allowFullScreen="" 
+            loading="lazy" 
+            referrerPolicy="no-referrer-when-downgrade"
+          ></iframe>
           
-          {/* Active Incident Pins */}
-          {activeAlerts.map((alert) => {
-            const loc = dbuLocations.find(l => l.name === alert.location);
-            if (!loc) return null;
+          {/* Active Incident Pins - Overlaying on Map */}
+          <div className="absolute inset-0 pointer-events-none">
+            {activeAlerts.map((alert) => {
+              const loc = dbuLocations.find(l => l.name === alert.location);
+              if (!loc) return null;
 
-            return (
-              <div 
-                key={alert.id}
-                className="absolute cursor-pointer transition-transform hover:scale-125 z-20"
-                style={{ top: loc.coords.top, left: loc.coords.left }}
-                onClick={() => setSelectedAlert(alert)}
-              >
-                <div className="relative flex flex-col items-center">
-                  <div className="bg-red-600 text-white p-2 rounded-full shadow-lg border-2 border-white animate-bounce">
-                    🚨
-                  </div>
-                  <div className="absolute -bottom-8 bg-gray-900 border border-gray-700 text-[10px] font-bold text-white px-2 py-1 rounded whitespace-nowrap shadow-xl">
-                    {alert.userName || 'Anonymous'}
+              return (
+                <div 
+                  key={alert.id}
+                  className="absolute cursor-pointer transition-transform hover:scale-125 z-20 pointer-events-auto"
+                  style={{ top: loc.coords.top, left: loc.coords.left }}
+                  onClick={() => setSelectedAlert(alert)}
+                >
+                  <div className="relative flex flex-col items-center">
+                    <div className="bg-red-600 text-white p-2 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.5)] border-2 border-white animate-bounce">
+                      🚨
+                    </div>
+                    <div className="absolute -bottom-8 bg-black/80 backdrop-blur-md border border-red-600/30 text-[9px] font-black text-white px-2 py-1 rounded-lg whitespace-nowrap shadow-2xl uppercase tracking-widest">
+                      {alert.userName || 'CRITICAL'}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
 
           {/* Map Overlay Info */}
-          <div className="absolute bottom-6 left-6 bg-black/60 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Live Feed Status</p>
-            <p className="text-white font-bold text-xs flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full" /> 
-              Connected to Command Server
+          <div className="absolute bottom-6 left-6 bg-black/80 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shadow-2xl">
+            <p className="text-[9px] font-black text-red-600 uppercase tracking-[0.3em] mb-1">Live DBU Campus Grid</p>
+            <p className="text-white font-black text-[11px] flex items-center gap-2 uppercase italic">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> 
+              Real-time Satellite Sync
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { db, auth } from "../firebase";
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
+import { auth, rtdb } from "../firebase";
+import { ref, push, set, serverTimestamp } from "firebase/database";
 
 export default function SendAlert() {
   const [type, setType] = useState("critical");
@@ -62,12 +62,15 @@ export default function SendAlert() {
       medicalInfo: { bloodType: "O+", allergies: "None" }
     };
 
-    // 🛡️ STEP 2: SEND TO FIREBASE (Strict 2s Timeout + Offline Fallback)
+    // 🛡️ STEP 2: SEND TO FIREBASE (RTDB - FREE)
     try {
-      const fbPromise = addDoc(collection(db, "alerts"), { ...alertData, timestamp: serverTimestamp() });
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000));
-
-      await Promise.race([fbPromise, timeoutPromise]);
+      const alertsRef = ref(rtdb, 'alerts');
+      const newAlertRef = push(alertsRef);
+      await set(newAlertRef, { 
+        ...alertData, 
+        id: newAlertRef.key,
+        timestamp: serverTimestamp() 
+      });
       setSuccess(true);
     } catch (err) {
       // Fail-Safe Bridge

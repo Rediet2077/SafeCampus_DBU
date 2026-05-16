@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
-import { collection, onSnapshot, doc, updateDoc, query, orderBy } from "firebase/firestore";
-import { db } from "../firebase";
+import { useState, useEffect, useRef } from "react";
+import { rtdb } from "../firebase";
+import { ref, onValue, update } from "firebase/database";
 
 const SIREN_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
 
@@ -21,22 +21,33 @@ export default function Alerts() {
   };
 
   useEffect(() => {
-    const q = query(collection(db, "alerts"), orderBy("timestamp", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      
-      // 🔊 VOICE & SIREN LOGIC
-      data.forEach(alert => {
-        if (alert.status === "active" && !spokenIds.current.has(alert.id)) {
-           if (audioEnabled) {
-             audioRef.current.play().catch(() => {});
-             speak(`Attention! New ${alert.severity} alert. ${alert.message || 'Emergency signal'} at ${alert.location || 'DBU Campus'}`);
-           }
-           spokenIds.current.add(alert.id);
-        }
-      });
+    const alertsRef = ref(rtdb, 'alerts');
+    const unsub = onValue(alertsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const alertList = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        })).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-      setAlerts(data);
+        // 🔊 VOICE & SIREN LOGIC
+        alertList.forEach(alert => {
+          if (alert.status === "active" && !spokenIds.current.has(alert.id)) {
+             if (audioEnabled) {
+               audioRef.current.play().catch(() => {});
+               speak(`Attention! New ${alert.severity} alert. ${alert.message || 'Emergency signal'} at ${alert.location || 'DBU Campus'}`);
+             }
+             spokenIds.current.add(alert.id);
+          }
+        });
+
+        setAlerts(alertList);
+      } else {
+        setAlerts([]);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("RTDB Error:", error);
       setLoading(false);
     });
     return () => unsub();
@@ -44,7 +55,7 @@ export default function Alerts() {
 
   const handleResolve = async (id) => {
     if (!window.confirm("Archive this incident?")) return;
-    await updateDoc(doc(db, "alerts", id), { 
+    await update(ref(rtdb, `alerts/${id}`), { 
       status: "resolved", 
       resolvedAt: new Date().toISOString() 
     });
@@ -62,16 +73,32 @@ export default function Alerts() {
             <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2 italic">Global Surveillance Active</p>
           </div>
           
-          <button 
-            onClick={() => {
-              setAudioEnabled(!audioEnabled);
-              // Unlock audio for Chrome/Edge
-              audioRef.current.play().then(() => audioRef.current.pause());
-            }}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${audioEnabled ? 'bg-red-600 shadow-lg shadow-red-900/40' : 'bg-gray-800'}`}
-          >
-            {audioEnabled ? "🔊 System Voice Live" : "🔈 Unlock Audio"}
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={async () => {
+                const demoAlerts = {
+                  "demo_1": { severity: "critical", message: "Armed intruder reported near Block 10", location: "Block 10 (Main Hall)", status: "active", userName: "Abebe Kebede", timestamp: Date.now() },
+                  "demo_2": { severity: "medical", message: "Student collapsed with severe breathing issues", location: "Main Library", status: "active", userName: "Marta Alemu", timestamp: Date.now() - 5000 },
+                  "demo_3": { severity: "help", message: "Power outage and stuck elevator", location: "Engineering Complex", status: "active", userName: "Chala Bekele", timestamp: Date.now() - 10000 },
+                };
+                await update(ref(rtdb, 'alerts'), demoAlerts);
+                alert("Live Demo Alerts Injected!");
+              }}
+              className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all"
+            >
+              + Demo Threats
+            </button>
+            <button 
+              onClick={() => {
+                setAudioEnabled(!audioEnabled);
+                // Unlock audio for Chrome/Edge
+                audioRef.current.play().then(() => audioRef.current.pause());
+              }}
+              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${audioEnabled ? 'bg-red-600 shadow-lg shadow-red-900/40' : 'bg-gray-800'}`}
+            >
+              {audioEnabled ? "🔊 System Voice Live" : "🔈 Unlock Audio"}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">

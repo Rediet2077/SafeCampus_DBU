@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
-import { collection, onSnapshot, query, orderBy, doc, updateDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { useState, useEffect, useRef } from "react";
+import { auth, rtdb } from "../firebase";
+import { ref, onValue, update } from "firebase/database";
 import { Link } from "react-router-dom";
 
 const ALARM_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
@@ -24,14 +24,15 @@ export default function Dashboard() {
   useEffect(() => {
     const syncOffline = () => {
       const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-      return offline.map(a => ({ ...a, timestamp: { toDate: () => new Date(a.timestamp) } }));
+      return offline.map(a => ({ ...a, timestamp: a.timestamp })); // RTDB uses plain timestamps
     };
 
-    const q = query(collection(db, "alerts"), orderBy("timestamp", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const cloudData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const alertsRef = ref(rtdb, 'alerts');
+    const unsub = onValue(alertsRef, (snapshot) => {
+      const cloudDataRaw = snapshot.val();
+      const cloudData = cloudDataRaw ? Object.keys(cloudDataRaw).map(key => ({ id: key, ...cloudDataRaw[key] })) : [];
       const offlineData = syncOffline();
-      const combined = [...offlineData, ...cloudData];
+      const combined = [...offlineData, ...cloudData].sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
       
       combined.forEach(a => {
         if (a.status === 'active' && a.severity === 'critical' && !announcedIds.current.has(a.id)) {
@@ -54,7 +55,7 @@ export default function Dashboard() {
       const offlineData = syncOffline();
       setAlerts(prev => {
         const cloudOnly = prev.filter(a => !a.id.toString().includes("offline"));
-        return [...offlineData, ...cloudOnly];
+        return [...offlineData, ...cloudOnly].sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
       });
     };
 
@@ -68,7 +69,6 @@ export default function Dashboard() {
   const handleQuickResolve = async (alertId) => {
     setActionId(alertId);
     try {
-      // 🛠️ FIXED: Don't delete offline alerts, just mark them as 'resolved'
       if (alertId.toString().includes("offline")) {
           const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
           const updated = offline.map(a => 
@@ -80,7 +80,7 @@ export default function Dashboard() {
           window.dispatchEvent(new Event("storage"));
           return;
       }
-      await updateDoc(doc(db, "alerts", alertId), { status: "resolved", resolvedAt: new Date().toISOString() });
+      await update(ref(rtdb, `alerts/${alertId}`), { status: "resolved", resolvedAt: new Date().toISOString() });
     } finally { setActionId(null); }
   };
 
