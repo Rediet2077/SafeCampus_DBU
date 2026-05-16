@@ -113,10 +113,34 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className={`lg:col-span-2 rounded-[40px] p-10 border ${nightMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-100 shadow-xl'}`}>
+          <div className={`lg:col-span-2 rounded-[40px] p-10 border relative ${nightMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-100 shadow-xl'}`}>
             <h2 className="text-xl font-black mb-8 uppercase italic flex items-center gap-3">
               <span className="w-3 h-3 bg-red-600 rounded-full animate-ping" /> Live Pipeline
             </h2>
+
+            {hoveredAlert && (
+              <div className="absolute top-10 right-10 z-50 w-64 bg-black/90 backdrop-blur-xl border border-red-600/30 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in duration-200 pointer-events-none">
+                 <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4">Verification Intelligence</p>
+                 <div className="space-y-4">
+                    {hoveredAlert.idCardImage && (
+                      <div className="w-full aspect-[1.6/1] rounded-xl overflow-hidden border border-gray-800">
+                         <img src={hoveredAlert.idCardImage} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div>
+                       <p className="text-[8px] font-black text-gray-500 uppercase">Subject Name</p>
+                       <p className="text-xs font-black text-white uppercase italic">{hoveredAlert.userName}</p>
+                    </div>
+                    <div>
+                       <p className="text-[8px] font-black text-gray-500 uppercase">Emergency Contact</p>
+                       <p className="text-xs font-black text-red-500">{hoveredAlert.userPhone || "Guest"}</p>
+                    </div>
+                    <div className="pt-2 border-t border-gray-800">
+                       <p className="text-[7px] text-gray-600 font-black uppercase">GPS Lock: {hoveredAlert.coordinates?.lat.toFixed(4)}, {hoveredAlert.coordinates?.lng.toFixed(4)}</p>
+                    </div>
+                 </div>
+              </div>
+            )}
 
             <div className="space-y-4">
               {loading ? (
@@ -125,7 +149,12 @@ export default function Dashboard() {
                 <div className="py-20 text-center opacity-30 italic font-black uppercase tracking-widest">All Sectors Secure.</div>
               ) : (
                 activeAlerts.map(alert => (
-                  <div key={alert.id} className={`flex items-center gap-5 p-6 rounded-[32px] border ${nightMode ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800' : 'bg-gray-50 border-gray-200'} transition-all`}>
+                  <div 
+                    key={alert.id} 
+                    onMouseEnter={() => setHoveredAlert(alert)}
+                    onMouseLeave={() => setHoveredAlert(null)}
+                    className={`flex items-center gap-5 p-6 rounded-[32px] border ${nightMode ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800 hover:border-red-600/20' : 'bg-gray-50 border-gray-200'} transition-all cursor-crosshair`}
+                  >
                      <div className={`w-1.5 h-12 rounded-full ${alert.severity === 'critical' ? 'bg-red-600 shadow-[0_0_12px_red]' : 'bg-blue-600'}`} />
                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-black uppercase tracking-tight truncate">{alert.message}</p>
