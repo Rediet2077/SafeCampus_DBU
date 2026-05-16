@@ -84,10 +84,10 @@ export default function SendAlert() {
     } catch (e) { console.warn("Photo failed"); }
 
     const alertData = {
-      userType: "registered",
-      userId: auth.currentUser?.uid || "anonymous",
-      userName: userProfile?.name || auth.currentUser?.displayName || "Student",
-      userEmail: userProfile?.email || auth.currentUser?.email || "Unknown",
+      userType: auth.currentUser ? "registered" : "guest",
+      userId: auth.currentUser?.uid || "guest_anonymous",
+      userName: userProfile?.name || auth.currentUser?.displayName || "Guest User",
+      userEmail: userProfile?.email || auth.currentUser?.email || "No Email",
       userPhone: userProfile?.emergencyContacts ? userProfile.emergencyContacts[0] : "N/A",
       idCardImage: userProfile?.idCardImage || null,
       severity: type,
@@ -99,7 +99,7 @@ export default function SendAlert() {
       timestamp: Date.now(),
       coordinates: coords,
       evidencePhoto: photo,
-      isVerified: !!coords
+      isVerified: !!coords || !!photo
     };
 
     try {
