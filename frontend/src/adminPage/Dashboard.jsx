@@ -118,26 +118,48 @@ export default function Dashboard() {
             <h2 className="text-xl font-black mb-8 uppercase italic flex items-center gap-3">
               <span className="w-3 h-3 bg-red-600 rounded-full animate-ping" /> Live Pipeline
             </h2>
-
+            {/* 🛰️ HOVER INFO TOOLTIP */}
             {hoveredAlert && (
-              <div className="absolute top-10 right-10 z-50 w-64 bg-black/90 backdrop-blur-xl border border-red-600/30 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in duration-200 pointer-events-none">
-                 <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4">Verification Intelligence</p>
-                 <div className="space-y-4">
-                    {hoveredAlert.idCardImage && (
-                      <div className="w-full aspect-[1.6/1] rounded-xl overflow-hidden border border-gray-800">
-                         <img src={hoveredAlert.idCardImage} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <div>
-                       <p className="text-[8px] font-black text-gray-500 uppercase">Subject Name</p>
-                       <p className="text-xs font-black text-white uppercase italic">{hoveredAlert.userName}</p>
+              <div className="absolute top-10 right-10 z-50 w-72 bg-black/95 backdrop-blur-2xl border border-red-600/30 rounded-[40px] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in duration-200 pointer-events-none">
+                 <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse" /> Dual-Verification Peek
+                 </p>
+                 
+                 <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-3">
+                       {hoveredAlert.idCardImage && (
+                         <div className="space-y-2">
+                            <p className="text-[7px] font-black text-gray-500 uppercase text-center">Official ID</p>
+                            <div className="w-full aspect-square rounded-2xl overflow-hidden border border-gray-800 shadow-inner">
+                               <img src={hoveredAlert.idCardImage} className="w-full h-full object-cover" />
+                            </div>
+                         </div>
+                       )}
+                       {hoveredAlert.evidencePhoto && (
+                         <div className="space-y-2">
+                            <p className="text-[7px] font-black text-red-500 uppercase text-center">Live Snapshot</p>
+                            <div className="w-full aspect-square rounded-2xl overflow-hidden border-2 border-red-600/30 shadow-lg shadow-red-900/20">
+                               <img src={hoveredAlert.evidencePhoto} className="w-full h-full object-cover" />
+                            </div>
+                         </div>
+                       )}
                     </div>
-                    <div>
-                       <p className="text-[8px] font-black text-gray-500 uppercase">Emergency Contact</p>
-                       <p className="text-xs font-black text-red-500">{hoveredAlert.userPhone || "Guest"}</p>
+
+                    <div className="bg-gray-800/20 p-4 rounded-2xl border border-gray-800/50">
+                       <p className="text-[8px] font-black text-gray-500 uppercase mb-1">Subject Identity</p>
+                       <p className="text-xs font-black text-white uppercase italic tracking-tight">{hoveredAlert.userName}</p>
+                       <p className="text-[9px] font-bold text-gray-400 truncate mt-1">{hoveredAlert.userEmail || "Anonymous Guest"}</p>
                     </div>
-                    <div className="pt-2 border-t border-gray-800">
-                       <p className="text-[7px] text-gray-600 font-black uppercase">GPS Lock: {hoveredAlert.coordinates?.lat.toFixed(4)}, {hoveredAlert.coordinates?.lng.toFixed(4)}</p>
+
+                    <div className="flex justify-between items-center px-2">
+                       <div>
+                          <p className="text-[7px] font-black text-gray-600 uppercase">Emergency Contact</p>
+                          <p className="text-[10px] font-black text-red-500">{hoveredAlert.userPhone || "N/A"}</p>
+                       </div>
+                       <div className="text-right">
+                          <p className="text-[7px] font-black text-gray-600 uppercase">Trust Score</p>
+                          <p className="text-[10px] font-black text-green-500">{hoveredAlert.trustScore}%</p>
+                       </div>
                     </div>
                  </div>
               </div>
