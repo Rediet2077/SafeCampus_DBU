@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { rtdb } from "../firebase";
-import { ref, onValue, update } from "firebase/database";
-
-const SIREN_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+import { ref, onValue, update, push, get } from "firebase/database";
+import { useAuth } from "../context/AuthContext";
 
 export default function Alerts() {
+  const { user: adminUser } = useAuth();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(false);
@@ -19,6 +19,40 @@ export default function Alerts() {
     msg.rate = 0.85;
     msg.pitch = 1;
     window.speechSynthesis.speak(msg);
+  };
+
+  const handleResolve = async (alertId, isFalseAlarm, userId) => {
+    try {
+      // 1. Mark alert as resolved
+      await update(ref(rtdb, `alerts/${alertId}`), {
+        status: "resolved",
+        resolvedAt: Date.now(),
+        resolvedBy: adminUser?.email || "System Admin",
+        resolutionType: isFalseAlarm ? "false_alarm" : "actual_emergency"
+      });
+      
+      // 2. Audit Log
+      const logRef = ref(rtdb, 'audit_logs');
+      await push(logRef, {
+        action: "RESOLVE_ALERT",
+        alertId,
+        admin: adminUser?.email || "System Admin",
+        timestamp: Date.now(),
+        type: isFalseAlarm ? "FALSE_ALARM" : "ACTUAL"
+      });
+
+      // 3. Trust Score Penalty
+      if (isFalseAlarm && userId && userId !== "guest_anonymous") {
+        const userRef = ref(rtdb, `users/${userId}`);
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+           const currentScore = snapshot.val().trustScore || 100;
+           await update(userRef, { trustScore: Math.max(0, currentScore - 25) });
+        }
+      }
+    } catch (err) {
+      console.error("Resolution failed", err);
+    }
   };
 
   useEffect(() => {
@@ -249,9 +283,21 @@ export default function Alerts() {
                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full" /> Recording Live
                         </span>
                      </div>
-                  </div>
-                )}
-
+                 {/* 🛠️ ACTION BUTTONS */}
+                 <div className="flex gap-4 mt-8">
+                    <button 
+                       onClick={() => handleResolve(alert.id, false, alert.userId)}
+                       className="flex-1 bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-2xl text-[9px] uppercase tracking-widest transition-all shadow-lg shadow-green-900/20"
+                    >
+                       Mark Resolved ✓
+                    </button>
+                    <button 
+                       onClick={() => handleResolve(alert.id, true, alert.userId)}
+                       className="flex-1 bg-gray-800 hover:bg-red-600 text-white font-black py-4 rounded-2xl text-[9px] uppercase tracking-widest transition-all"
+                    >
+                       False Alarm ⚠
+                    </button>
+                 </div>
               </div>
             ))}
           </div>
