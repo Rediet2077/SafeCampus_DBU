@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { auth, rtdb } from "../firebase";
+import { ref, push, set } from "firebase/database";
 
 const translations = {
   en: {
@@ -74,18 +74,41 @@ export default function Landing() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [error, setError] = useState("");
   const t = translations[lang];
+
+  const DBU_COORDS = { lat: 9.6823, lng: 39.5312 };
+
+  const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
   const triggerEmergency = async () => {
     setLoading(true);
+    setError("");
     let coords = null;
     try {
       const pos = await new Promise((res, rej) => {
-        const timeout = setTimeout(() => rej(), 2000);
-        navigator.geolocation.getCurrentPosition((p) => { clearTimeout(timeout); res(p); }, rej, { timeout: 2000 });
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 });
       });
       coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    } catch (e) {}
+
+      const dist = getDistance(coords.lat, coords.lng, DBU_COORDS.lat, DBU_COORDS.lng);
+      if (dist > 10) {
+        setError("Invalid Location: You must be on the DBU Campus.");
+        setLoading(false);
+        setShowConfirm(false);
+        return;
+      }
+    } catch (e) { console.warn("GPS Fail"); }
 
     const alertData = {
       userType: "guest",
@@ -94,26 +117,57 @@ export default function Landing() {
       severity: "critical",
       coordinates: coords,
       status: "active",
-      timestamp: new Date().toISOString()
+      timestamp: Date.now()
     };
 
     try {
-      const fb = addDoc(collection(db, "alerts"), { ...alertData, timestamp: serverTimestamp() });
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(), 2000));
-      await Promise.race([fb, timeout]);
+      const alertsRef = ref(rtdb, 'alerts');
+      const newAlertRef = push(alertsRef);
+      await set(newAlertRef, { ...alertData, id: newAlertRef.key });
       setSuccess(true);
+      setShowConfirm(false);
     } catch (err) {
       setSmsSent(true);
-      const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-      offline.push({ ...alertData, id: "offline_sms_" + Date.now(), mode: "sms" });
-      localStorage.setItem("offline_alerts", JSON.stringify(offline));
-      window.dispatchEvent(new Event("storage"));
       setSuccess(true);
+      setShowConfirm(false);
     } finally { setLoading(false); }
   };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-red-100 scroll-smooth">
+      {/* 🛡️ LOCATION ERROR BANNER */}
+      {error && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-3 rounded-full font-black uppercase text-[10px] shadow-2xl animate-bounce">
+          ⚠ {error}
+        </div>
+      )}
+
+      {/* 🛡️ GUEST CONFIRMATION MODAL */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] flex items-center justify-center p-6">
+          <div className="bg-white rounded-[48px] p-10 w-full max-w-sm text-center shadow-2xl">
+            <span className="text-6xl mb-6 block">⚠</span>
+            <h2 className="text-2xl font-black uppercase italic mb-4">Confirm Emergency</h2>
+            <p className="text-gray-500 text-sm mb-8 font-medium">This will alert DBU Security immediately. Fake reports are tracked by GPS.</p>
+            <div className="space-y-4">
+              <button 
+                onClick={triggerEmergency}
+                disabled={loading}
+                className="w-full bg-red-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-xs"
+              >
+                {loading ? 'Dispatching...' : 'YES, SEND ALERT'}
+              </button>
+              <button 
+                onClick={() => setShowConfirm(false)}
+                className="w-full bg-gray-100 text-gray-400 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="flex justify-between items-center px-6 md:px-12 py-6 border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
           <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center shadow-lg"><span className="text-white text-xl font-black">S</span></div>
@@ -147,7 +201,7 @@ export default function Landing() {
 
         <div className="flex flex-col items-center">
           <button 
-            onClick={triggerEmergency}
+            onClick={() => setShowConfirm(true)}
             disabled={loading || success}
             className={`w-48 h-48 md:w-64 md:h-64 rounded-full flex flex-col items-center justify-center transition-all border-8 ${success ? 'bg-green-600 border-green-200 shadow-2xl' : 'bg-red-600 border-red-200 shadow-xl shadow-red-900/20 hover:scale-105'}`}
           >
