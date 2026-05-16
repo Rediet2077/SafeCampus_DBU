@@ -186,6 +186,32 @@ export default function Register() {
     }
   };
 
+  const validateStep1 = (e) => {
+    e.preventDefault();
+    
+    // Email Validation
+    if (!email.toLowerCase().endsWith("@dbu.edu.et")) {
+      setError("SECURITY ALERT: Registration restricted to official @dbu.edu.et university emails.");
+      return;
+    }
+    
+    // Student ID Format
+    const idRegex = /^DBU\/\d{4}\/\d{2}$/i;
+    if (!idRegex.test(studentId)) {
+      setError("INVALID ID FORMAT: Please use the standard format (e.g., DBU/1234/12).");
+      return;
+    }
+
+    // Password Strength
+    if (password.length < 8) {
+      setError("WEAK PASSWORD: Password must be at least 8 characters long.");
+      return;
+    }
+
+    setError("");
+    setStep(2);
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4 relative overflow-hidden font-sans">
       <div className="absolute inset-0 pointer-events-none">
@@ -210,7 +236,7 @@ export default function Register() {
           {error && <div className="mb-6 bg-red-500/10 border border-red-500/30 text-red-500 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3"><span>⚠️</span> {error}</div>}
 
           {step === 1 && (
-            <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <form onSubmit={validateStep1} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Full Name</label>

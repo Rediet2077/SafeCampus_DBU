@@ -46,6 +46,13 @@ export default function Login() {
     } catch (err) {
       clearTimeout(demoTimeout);
       
+      // 🚨 BRUTE FORCE LOCKOUT DETECTION
+      if (err.code === "auth/too-many-requests") {
+        setError("ACCOUNT LOCKED: Too many failed attempts. Please try again later or reset password.");
+        setLoading(false);
+        return;
+      }
+      
       // 🚨 AUTO-INITIALIZE ADMIN
       if (email.toLowerCase() === "admin@safecampus.com" && (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential")) {
         try {

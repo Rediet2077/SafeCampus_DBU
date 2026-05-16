@@ -41,6 +41,13 @@ export default function SendAlert() {
   const [activeChannels, setActiveChannels] = useState([]);
 
   const handleSendAlert = async () => {
+    // 🚨 SOS RATE LIMITING / SPAM PREVENTION
+    const lastSos = localStorage.getItem("safecampus_last_sos");
+    if (lastSos && Date.now() - parseInt(lastSos) < 60000) {
+      setError("RATE LIMIT EXCEEDED: You must wait 60 seconds before broadcasting another SOS signal.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setActiveChannels([]);
@@ -145,6 +152,7 @@ export default function SendAlert() {
       setError("NETWORK COMPROMISED: Satellite Ping Engaged. Signal cached for auto-uplink.");
       setSuccess(true); // Still show success but with satellite mode UI
     } finally { 
+      localStorage.setItem("safecampus_last_sos", Date.now().toString());
       setLoading(false); 
       setNetworkStatus("");
     }
