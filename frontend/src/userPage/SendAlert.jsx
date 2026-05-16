@@ -165,12 +165,12 @@ export default function SendAlert() {
             <p className="text-gray-400 mb-8 font-medium">
                {isSat ? 'Network unavailable. Emergency payload cached for auto-uplink to DBU security satellite.' : 'Verification complete. Help is on the way.'}
             </p>
-            <button onClick={() => navigate("/user")} className={`w-full font-black py-4 rounded-2xl ${isSat ? 'bg-orange-600 text-white' : 'bg-white text-black'}`}>
+            <button onClick={() => navigate(auth.currentUser ? "/user" : "/")} className={`w-full font-black py-4 rounded-2xl ${isSat ? 'bg-orange-600 text-white' : 'bg-white text-black'}`}>
                Return Home
             </button>
           </>
         ) : (
-          <button onClick={() => navigate("/user")} className="mt-20 opacity-0 cursor-default">Home</button>
+          <button onClick={() => navigate(auth.currentUser ? "/user" : "/")} className="mt-20 opacity-0 cursor-default">Home</button>
         )}
       </div>
     );
