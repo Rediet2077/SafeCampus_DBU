@@ -4,6 +4,12 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Landing from "./pages/Landing";
+import Layout from "./adminPage/Layout";
+import Dashboard from "./adminPage/Dashboard";
+import Alerts from "./adminPage/Alerts";
+import Users from "./adminPage/Users"; // 🛠️ IMPORTED USERS
+import CampusMap from "./adminPage/CampusMap";
+import Settings from "./adminPage/Settings";
 import UserLayout from "./userPage/UserLayout";
 import UserDashboard from "./userPage/UserDashboard";
 import SendAlert from "./userPage/SendAlert";
@@ -22,6 +28,21 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
+          {/* Admin Protected routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="alerts" element={<Alerts />} />
+            <Route path="users" element={<Users />} /> {/* 🛠️ ADDED USER MANAGEMENT ROUTE */}
+            <Route path="map" element={<CampusMap />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
 
           {/* User/Student routes */}
           <Route
