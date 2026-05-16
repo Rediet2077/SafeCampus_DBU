@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { rtdb } from "../firebase";
 import { ref, onValue, set, remove, update } from "firebase/database";
+import { Link } from "react-router-dom";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -121,7 +122,14 @@ export default function Users() {
 
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-          <h1 className="text-4xl font-black tracking-tighter uppercase italic">User <span className="text-red-600">Management</span></h1>
+          <div>
+            <Link to="/admin" className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-red-600 transition-all mb-4 group">
+               <span className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center border border-gray-800 group-hover:border-red-600 transition-all text-xs">←</span>
+               Back to Dashboard
+            </Link>
+            <h1 className="text-4xl font-black tracking-tighter uppercase italic">User <span className="text-red-600">Management</span></h1>
+            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">{studentUsers.length} registered student{studentUsers.length !== 1 ? 's' : ''} • Realtime Data</p>
+          </div>
           <div className="flex gap-3">
             <button onClick={broadcastAlert} className="px-5 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg">Broadcast to All</button>
             <button onClick={seedDemoData} className="px-4 py-3 bg-gray-800 text-gray-400 rounded-2xl text-[9px] font-black uppercase">+ Demo</button>
