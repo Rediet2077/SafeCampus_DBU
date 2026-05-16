@@ -5,6 +5,7 @@ import { ref, onValue, query, limitToLast } from "firebase/database";
 
 export default function UserDashboard() {
   const [activeAlert, setActiveAlert] = useState(null);
+  const [circleAlerts, setCircleAlerts] = useState([]);
   const [userName, setUserName] = useState("Student");
   const [safetyStatus, setSafetyStatus] = useState({ level: "Secure", color: "green", message: "All campus sectors are currently under normal surveillance." });
   const navigate = useNavigate();
@@ -18,32 +19,31 @@ export default function UserDashboard() {
     const safetyRef = ref(rtdb, 'system_status/current');
     const unsubSafety = onValue(safetyRef, (snap) => {
       const data = snap.val();
-      if (data) {
-        setSafetyStatus(data);
-        if (data.level === "Critical") {
-           console.log(`[EMAIL DISPATCH] To ${auth.currentUser?.email}: DANGER ZONE ALERT - ${data.message}`);
-        }
-      }
+      if (data) setSafetyStatus(data);
     });
 
-    // 🚨 ACTIVE USER ALERT (Check recent alerts on RTDB)
+    // 🚨 ALERT SYNC (Personal & Trusted Circle)
     const alertsRef = ref(rtdb, 'alerts');
     const unsubAlert = onValue(alertsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // Find latest active alert for this user
-        const userAlerts = Object.keys(data)
-          .map(key => ({ id: key, ...data[key] }))
-          .filter(a => a.userId === auth.currentUser?.uid && (a.status === "active" || a.status === "dispatched"))
-          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        const allAlerts = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        
+        // 1. My personal active alerts
+        const myActive = allAlerts.find(a => a.userId === auth.currentUser?.uid && (a.status === "active" || a.status === "dispatched"));
+        setActiveAlert(myActive || null);
 
-        if (userAlerts.length > 0) {
-          setActiveAlert(userAlerts[0]);
-        } else {
-          setActiveAlert(null);
-        }
+        // 2. Trusted Circle alerts (People who added ME to their circle)
+        const myEmail = auth.currentUser?.email?.toLowerCase();
+        const circleActive = allAlerts.filter(a => 
+          a.userId !== auth.currentUser?.uid && 
+          a.trustedCircle?.some(email => email.toLowerCase() === myEmail) &&
+          (a.status === "active" || a.status === "dispatched")
+        );
+        setCircleAlerts(circleActive);
       } else {
         setActiveAlert(null);
+        setCircleAlerts([]);
       }
     });
 
@@ -60,7 +60,7 @@ export default function UserDashboard() {
       </div>
 
       {/* 🛡️ NEW BENEFIT: LIVE CAMPUS SAFETY STATUS */}
-      <div className={`p-8 rounded-[40px] border-2 transition-all duration-500 mb-8 ${safetyStatus.level === 'Critical' ? 'bg-red-50 border-red-200 shadow-xl shadow-red-900/10' : 'bg-gray-50 border-gray-100'}`}>
+      <div className={`p-8 rounded-[40px] border-2 transition-all duration-500 mb-6 ${safetyStatus.level === 'Critical' ? 'bg-red-50 border-red-200 shadow-xl shadow-red-900/10' : 'bg-gray-50 border-gray-100'}`}>
          <div className="flex justify-between items-start mb-6">
             <div className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${safetyStatus.level === 'Critical' ? 'bg-red-600 text-white animate-pulse' : 'bg-green-600 text-white'}`}>
                Campus Status: {safetyStatus.level}
@@ -72,6 +72,30 @@ export default function UserDashboard() {
             {safetyStatus.level === 'Critical' ? '📧 Email notification sent to your registered address' : 'Normal surveillance active in all sectors'}
          </p>
       </div>
+
+      {/* 🛰️ CIRCLE INTELLIGENCE: NOTIFICATIONS FROM FRIENDS */}
+      {circleAlerts.length > 0 && (
+        <div className="mb-8 space-y-4">
+           <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] px-4">Circle Intelligence Live</p>
+           {circleAlerts.map(alert => (
+             <div key={alert.id} className="bg-blue-600 p-8 rounded-[40px] shadow-2xl shadow-blue-900/20 border-4 border-blue-200 flex flex-col gap-4 animate-in zoom-in duration-300">
+                <div className="flex justify-between items-center">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-blue-900/30">🤝</div>
+                      <div>
+                         <p className="text-white font-black text-xs uppercase italic tracking-tight">{alert.userName} in Distress</p>
+                         <p className="text-blue-200 text-[8px] font-black uppercase tracking-widest">At {alert.location}</p>
+                      </div>
+                   </div>
+                   <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${alert.coordinates?.lat},${alert.coordinates?.lng}`, '_blank')} className="px-5 py-2.5 bg-white text-blue-600 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl">Locate Friend</button>
+                </div>
+                <div className="bg-blue-700/50 p-4 rounded-2xl border border-blue-400/20">
+                   <p className="text-white/80 text-[10px] font-bold italic leading-relaxed">"{alert.message}"</p>
+                </div>
+             </div>
+           ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 mb-12">
         <Link 

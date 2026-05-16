@@ -90,6 +90,7 @@ export default function SendAlert() {
       userEmail: userProfile?.email || auth.currentUser?.email || "No Email",
       userPhone: userProfile?.emergencyContacts ? userProfile.emergencyContacts[0] : "N/A",
       idCardImage: userProfile?.idCardImage || null,
+      trustedCircle: userProfile?.trustedCircle || [],
       severity: type,
       message: description || `EMERGENCY: ${type.toUpperCase()}`,
       location: location,
