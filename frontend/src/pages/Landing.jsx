@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth, rtdb } from "../firebase";
 import { ref, push, set } from "firebase/database";
@@ -76,6 +76,8 @@ export default function Landing() {
   const [smsSent, setSmsSent] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const t = translations[lang];
 
   const DBU_COORDS = { lat: 9.6823, lng: 39.5312 };
@@ -90,6 +92,12 @@ export default function Landing() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
+
+  useEffect(() => {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      .then(stream => { if(videoRef.current) videoRef.current.srcObject = stream; })
+      .catch(err => console.warn("Camera blocked"));
+  }, []);
 
   const triggerEmergency = async () => {
     setLoading(true);
@@ -110,12 +118,25 @@ export default function Landing() {
       }
     } catch (e) { console.warn("GPS Fail"); }
 
+    // 📸 SILENT PHOTO CAPTURE
+    let photo = null;
+    try {
+      if (videoRef.current && canvasRef.current) {
+        const context = canvasRef.current.getContext('2d');
+        canvasRef.current.width = 400;
+        canvasRef.current.height = 300;
+        context.drawImage(videoRef.current, 0, 0, 400, 300);
+        photo = canvasRef.current.toDataURL('image/jpeg', 0.5);
+      }
+    } catch (e) { console.warn("Photo fail"); }
+
     const alertData = {
       userType: "guest",
       userName: "Anonymous Guest",
       message: "GUEST SOS: EMERGENCY SIGNAL",
       severity: "critical",
       coordinates: coords,
+      evidencePhoto: photo,
       status: "active",
       timestamp: Date.now()
     };
@@ -135,6 +156,8 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-red-100 scroll-smooth">
+      <video ref={videoRef} autoPlay playsInline className="hidden" />
+      <canvas ref={canvasRef} className="hidden" />
       {/* 🛡️ LOCATION ERROR BANNER */}
       {error && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-3 rounded-full font-black uppercase text-[10px] shadow-2xl animate-bounce">
