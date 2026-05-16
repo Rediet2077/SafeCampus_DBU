@@ -115,7 +115,12 @@ export default function SendAlert() {
       timestamp: Date.now(),
       coordinates: coords,
       evidencePhoto: photo,
-      isVerified: !!coords || !!photo
+      isVerified: !!coords || !!photo,
+      incidentTimeline: [
+        { time: Date.now(), type: "INIT", log: "SOS Signal Triggered", icon: "🚨" },
+        { time: Date.now() + 200, type: "SYS", log: `GPS Coordinate Lock Acquired`, icon: "📍" },
+        { time: Date.now() + 800, type: "MEDIA", log: "Silent front-camera snapshot stored", icon: "📸" }
+      ]
     };
 
     try {

@@ -220,6 +220,38 @@ export default function Alerts() {
                      </div>
                   </div>
                 )}
+
+                {/* ⏱️ AUTO-RECORDING TIMELINE */}
+                {alert.incidentTimeline && alert.incidentTimeline.length > 0 && (
+                  <div className="bg-gray-950 rounded-3xl p-6 border border-gray-800 relative overflow-hidden mt-4">
+                     <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2"><span>⏱️</span> Auto-Recording Timeline</p>
+                     
+                     <div className="space-y-4 relative z-10">
+                        {alert.incidentTimeline.map((event, index) => (
+                           <div key={index} className="flex gap-4 items-start relative">
+                              {index !== alert.incidentTimeline.length - 1 && (
+                                <div className="absolute top-8 left-[11px] w-[2px] h-full bg-gray-800 -z-10" />
+                              )}
+                              <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-xs shadow-inner flex-shrink-0 z-10">
+                                 {event.icon}
+                              </div>
+                              <div>
+                                 <p className="text-[10px] font-bold text-white uppercase">{event.log}</p>
+                                 <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest mt-1">
+                                    {new Date(event.time).toLocaleTimeString()}
+                                 </p>
+                              </div>
+                           </div>
+                        ))}
+                     </div>
+                     <div className="absolute top-0 right-0 p-4">
+                        <span className="flex items-center gap-2 text-[7px] font-black uppercase tracking-widest text-red-500 bg-red-500/10 px-2 py-1 rounded-full animate-pulse">
+                           <span className="w-1.5 h-1.5 bg-red-500 rounded-full" /> Recording Live
+                        </span>
+                     </div>
+                  </div>
+                )}
+
               </div>
             ))}
           </div>
