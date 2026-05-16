@@ -85,11 +85,17 @@ export default function Dashboard() {
   };
 
   const activeAlerts = alerts.filter(a => a.status === 'active' || a.status === 'dispatched');
+  
   const locationStats = alerts.reduce((acc, a) => {
-    acc[a.location] = (acc[a.location] || 0) + 1;
+    const loc = a.location || "Undefined Sector";
+    acc[loc] = (acc[loc] || 0) + 1;
     return acc;
   }, {});
-  const topLocations = Object.entries(locationStats).sort((a,b) => b[1] - a[1]).slice(0, 3);
+  
+  const topLocations = Object.entries(locationStats)
+    .filter(([loc]) => loc !== "undefined" && loc !== "null")
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 5);
 
   return (
     <div className={`p-8 min-h-screen transition-all duration-700 relative ${nightMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
@@ -176,26 +182,53 @@ export default function Dashboard() {
                     key={alert.id} 
                     onMouseEnter={() => setHoveredAlert(alert)}
                     onMouseLeave={() => setHoveredAlert(null)}
-                    className={`flex items-center gap-5 p-6 rounded-[32px] border ${nightMode ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800 hover:border-red-600/20' : 'bg-gray-50 border-gray-200'} transition-all cursor-crosshair`}
+                    className={`flex items-center gap-6 p-6 rounded-[32px] border ${nightMode ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800 hover:border-red-600/20' : 'bg-gray-50 border-gray-200'} transition-all cursor-crosshair shadow-lg`}
                   >
-                     <div className={`w-1.5 h-12 rounded-full ${alert.severity === 'critical' ? 'bg-red-600 shadow-[0_0_12px_red]' : 'bg-blue-600'}`} />
+                     <div className={`w-2 h-14 rounded-full ${alert.severity === 'critical' ? 'bg-red-600 shadow-[0_0_15px_red] animate-pulse' : 'bg-blue-600'}`} />
+                     
                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black uppercase tracking-tight truncate">{alert.message}</p>
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">📍 {alert.location}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                           <span className={`text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${alert.severity === 'critical' ? 'bg-red-600/20 text-red-500' : 'bg-blue-600/20 text-blue-500'}`}>
+                              {alert.severity} PRIORITY
+                           </span>
+                           <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest">{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <p className="text-sm font-black uppercase tracking-tight text-white leading-none mb-1">{alert.message}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1 italic">
+                           📍 {alert.location || "Sector Unknown"}
+                        </p>
                      </div>
-                     {alert.evidencePhoto && (
-                       <div 
-                         onClick={() => setZoomPhoto(alert.evidencePhoto)}
-                         className="w-12 h-12 rounded-xl overflow-hidden border border-gray-700 shadow-lg cursor-zoom-in hover:scale-110 transition-transform"
-                       >
-                         <img src={alert.evidencePhoto} alt="Thumb" className="w-full h-full object-cover grayscale" />
-                       </div>
-                     )}
-                     <div className="flex items-center gap-2">
-                        {alert.coordinates && <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${alert.coordinates.lat},${alert.coordinates.lng}`, '_blank')} className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">🧭</button>}
-                        <button onClick={() => handleQuickResolve(alert.id)} disabled={actionId === alert.id} className="px-6 py-3 bg-green-600 hover:bg-green-50 rounded-2xl text-white text-[9px] font-black uppercase tracking-widest shadow-lg shadow-green-900/20">
-                          {actionId === alert.id ? "..." : "Resolve"}
-                        </button>
+
+                     <div className="flex items-center gap-3">
+                        {alert.evidencePhoto && (
+                          <div 
+                            onClick={() => setZoomPhoto(alert.evidencePhoto)}
+                            className="w-14 h-14 rounded-2xl overflow-hidden border border-gray-700 shadow-2xl cursor-zoom-in hover:scale-105 transition-all group-hover:border-red-600/30"
+                          >
+                            <img src={alert.evidencePhoto} alt="Thumb" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-col gap-2">
+                           <div className="flex gap-2">
+                              {alert.coordinates && (
+                                <button 
+                                  onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${alert.coordinates.lat},${alert.coordinates.lng}`, '_blank')} 
+                                  className="w-10 h-10 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white shadow-lg transition-all"
+                                  title="Dispatch Route"
+                                >
+                                  🧭
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleQuickResolve(alert.id)} 
+                                disabled={actionId === alert.id} 
+                                className="px-5 h-10 bg-green-600 hover:bg-green-500 rounded-xl text-white text-[9px] font-black uppercase tracking-widest shadow-lg transition-all disabled:opacity-50"
+                              >
+                                {actionId === alert.id ? "..." : "Resolve"}
+                              </button>
+                           </div>
+                        </div>
                      </div>
                   </div>
                 ))

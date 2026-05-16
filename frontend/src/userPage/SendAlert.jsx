@@ -122,12 +122,12 @@ export default function SendAlert() {
       trustedCircle: userProfile?.trustedCircle || [],
       severity: type,
       message: description || `EMERGENCY: ${type.toUpperCase()}`,
-      location: location,
+      location: location || "Sector Unknown",
       status: "active",
       silent: silentMode,
       trustScore: userProfile?.trustScore || 100,
       timestamp: Date.now(),
-      coordinates: coords,
+      coordinates: coords || { lat: 9.6569, lng: 39.5220 }, // Fallback to DBU Center
       evidencePhoto: photo,
       isVerified: !!coords || !!photo,
       incidentTimeline: [
