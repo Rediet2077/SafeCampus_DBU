@@ -125,6 +125,11 @@ export default function Dashboard() {
                         <p className="text-sm font-black uppercase tracking-tight truncate">{alert.message}</p>
                         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">📍 {alert.location}</p>
                      </div>
+                     {alert.evidencePhoto && (
+                       <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-700 shadow-lg">
+                         <img src={alert.evidencePhoto} alt="Thumb" className="w-full h-full object-cover grayscale" />
+                       </div>
+                     )}
                      <div className="flex items-center gap-2">
                         {alert.coordinates && <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${alert.coordinates.lat},${alert.coordinates.lng}`, '_blank')} className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">🧭</button>}
                         <button onClick={() => handleQuickResolve(alert.id)} disabled={actionId === alert.id} className="px-6 py-3 bg-green-600 hover:bg-green-50 rounded-2xl text-white text-[9px] font-black uppercase tracking-widest shadow-lg shadow-green-900/20">

@@ -121,6 +121,13 @@ export default function Alerts() {
 
                 <h3 className="text-xl font-black uppercase italic mb-4 leading-tight">{alert.message}</h3>
                 
+                {alert.evidencePhoto && (
+                  <div className="mb-6 rounded-3xl overflow-hidden border border-gray-800 shadow-inner group-hover:border-red-600/20 transition-all">
+                    <p className="text-[8px] font-black text-gray-500 uppercase p-3 bg-black/40">🛰️ Live Evidence Capture</p>
+                    <img src={alert.evidencePhoto} alt="SOS Evidence" className="w-full h-48 object-cover grayscale hover:grayscale-0 transition-all duration-500" />
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-2 gap-4">
                    <div className="bg-black/30 p-4 rounded-2xl border border-gray-800">
                       <p className="text-[8px] font-black text-gray-500 uppercase mb-1">Target Identity</p>
