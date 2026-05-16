@@ -31,7 +31,7 @@ export default function Login() {
           }, 1000);
        }
     }, 4000);
-
+    try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       clearTimeout(demoTimeout);
       
@@ -70,7 +70,7 @@ export default function Login() {
             createdAt: new Date().toISOString()
           });
           setSuccess(true);
-          setTimeout(() => navigate("/admin"), 800);
+          setTimeout(() => navigate("/"), 800);
           return;
         } catch (createErr) {}
       }
