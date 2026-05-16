@@ -22,15 +22,22 @@ export default function Register() {
 
   // Initialize camera for ID scan
   useEffect(() => {
-    if (step === 2) {
+    let stream = null;
+    if (step === 2 && !idImage) {
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(stream => { if(videoRef.current) videoRef.current.srcObject = stream; })
+        .then(s => { 
+          stream = s;
+          if(videoRef.current) videoRef.current.srcObject = s; 
+        })
         .catch(err => {
           console.error("Camera fail:", err);
           setError("Camera access is required for ID verification.");
         });
     }
-  }, [step]);
+    return () => {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    };
+  }, [step, idImage]);
 
   const handleCaptureId = () => {
     if (videoRef.current && canvasRef.current) {
@@ -40,10 +47,6 @@ export default function Register() {
       context.drawImage(videoRef.current, 0, 0, 640, 480);
       const data = canvasRef.current.toDataURL('image/jpeg', 0.7);
       setIdImage(data);
-      
-      // Stop camera stream
-      const stream = videoRef.current.srcObject;
-      if (stream) stream.getTracks().forEach(track => track.stop());
     }
   };
 
