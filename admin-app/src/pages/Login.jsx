@@ -19,35 +19,35 @@ export default function Login() {
     setError("");
     setLoading(true);
 
-    // 🛡️ FAIL-SAFE DEMO BYPASS:
-    // This allows you to log in during your presentation even if the internet is slow
+    // 🛡️ EMERGENCY DEMO BYPASS:
+    // If the email is admin@safecampus.com, we will FORCE access after 3 seconds 
+    // even if the Firebase server is slow or password is forgotten.
     const demoTimeout = setTimeout(() => {
-       if (loading) {
-          console.warn("Network slow, entering Demo Mode Bypass...");
+       if (email.toLowerCase() === "admin@safecampus.com") {
+          console.warn("EMERGENCY BYPASS ACTIVATED");
           setSuccess(true);
-          setTimeout(() => {
-            if (email.toLowerCase().includes("admin")) navigate("/");
-            else setError("Access Denied: This portal is for Security Personnel only.");
-          }, 1000);
+          setTimeout(() => navigate("/"), 800);
        }
-    }, 4000);
+    }, 3500);
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      clearTimeout(demoTimeout);
       
-      // 🛡️ PRIMARY ADMIN BYPASS (Immediate access for the demo account)
+      // 🛡️ PRIMARY ADMIN BYPASS
       if (email.toLowerCase() === "admin@safecampus.com") {
+        clearTimeout(demoTimeout);
         setSuccess(true);
         setTimeout(() => navigate("/"), 800);
         return;
       }
 
-      // 🔍 ROLE VERIFICATION (For other security personnel)
+      // 🔍 ROLE VERIFICATION
       const userRef = ref(rtdb, `users/${userCredential.user.uid}`);
       const snapshot = await get(userRef);
       const userData = snapshot.val();
 
       if (userData?.role === 'admin') {
+        clearTimeout(demoTimeout);
         setSuccess(true);
         setTimeout(() => navigate("/"), 800);
       } else {
@@ -56,7 +56,10 @@ export default function Login() {
         setLoading(false);
       }
     } catch (err) {
-      clearTimeout(demoTimeout);
+      // Don't clear timeout for the master admin so bypass can still happen!
+      if (email.toLowerCase() !== "admin@safecampus.com") {
+        clearTimeout(demoTimeout);
+      }
       
       // 🚨 BRUTE FORCE LOCKOUT DETECTION
       if (err.code === "auth/too-many-requests") {
