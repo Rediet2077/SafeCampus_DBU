@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [nightMode, setNightMode] = useState(true);
   const [connStatus, setConnStatus] = useState("connecting");
   const [actionId, setActionId] = useState(null);
+  const [zoomPhoto, setZoomPhoto] = useState(null);
   const audioRef = useRef(new Audio(ALARM_SOUND));
   const announcedIds = useRef(new Set());
 
@@ -24,7 +25,7 @@ export default function Dashboard() {
   useEffect(() => {
     const syncOffline = () => {
       const offline = JSON.parse(localStorage.getItem("offline_alerts") || "[]");
-      return offline.map(a => ({ ...a, timestamp: a.timestamp })); // RTDB uses plain timestamps
+      return offline.map(a => ({ ...a, timestamp: a.timestamp }));
     };
 
     const alertsRef = ref(rtdb, 'alerts');
@@ -46,9 +47,7 @@ export default function Dashboard() {
       setLoading(false);
       setConnStatus("live");
     }, (error) => {
-      setAlerts(syncOffline());
       setLoading(false);
-      setConnStatus("offline");
     });
 
     const handleStorage = () => {
@@ -92,7 +91,14 @@ export default function Dashboard() {
   const topLocations = Object.entries(locationStats).sort((a,b) => b[1] - a[1]).slice(0, 3);
 
   return (
-    <div className={`p-8 min-h-screen transition-all duration-700 ${nightMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div className={`p-8 min-h-screen transition-all duration-700 relative ${nightMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
+      {zoomPhoto && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-10 cursor-zoom-out" onClick={() => setZoomPhoto(null)}>
+          <img src={zoomPhoto} alt="Evidence Zoom" className="max-w-full max-h-[85vh] rounded-[48px] shadow-2xl border border-white/10" />
+          <button className="mt-8 px-12 py-4 bg-red-600 text-white font-black uppercase tracking-widest rounded-2xl">Close Evidence</button>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-black tracking-tighter uppercase italic">Dispatch <span className="text-red-600">Commander</span></h1>
@@ -126,7 +132,10 @@ export default function Dashboard() {
                         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">📍 {alert.location}</p>
                      </div>
                      {alert.evidencePhoto && (
-                       <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-700 shadow-lg">
+                       <div 
+                         onClick={() => setZoomPhoto(alert.evidencePhoto)}
+                         className="w-12 h-12 rounded-xl overflow-hidden border border-gray-700 shadow-lg cursor-zoom-in hover:scale-110 transition-transform"
+                       >
                          <img src={alert.evidencePhoto} alt="Thumb" className="w-full h-full object-cover grayscale" />
                        </div>
                      )}
