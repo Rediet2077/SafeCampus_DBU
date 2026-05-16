@@ -132,6 +132,12 @@ export default function Register() {
       </div>
 
       <div className="relative w-full max-w-md">
+        {/* Navigation back home */}
+        <Link to="/" className="absolute -top-16 left-0 flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-red-600 transition-all group">
+           <span className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center border border-gray-800 group-hover:border-red-600 transition-all">←</span>
+           Back to Home
+        </Link>
+
         <div className="text-center mb-10">
           <div className="w-20 h-20 bg-gradient-to-br from-[#6B46C1] to-red-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 shadow-[0_0_50px_rgba(107,70,193,0.3)] border border-white/10">🛡️</div>
           <h1 className="text-4xl font-black text-white tracking-tightest uppercase italic">Safe<span className="text-red-600">Campus</span></h1>

@@ -88,6 +88,12 @@ export default function Login() {
       </div>
 
       <div className="relative w-full max-w-md">
+        {/* Navigation back home */}
+        <Link to="/" className="absolute -top-16 left-0 flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-red-600 transition-all group">
+           <span className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center border border-gray-800 group-hover:border-red-600 transition-all">←</span>
+           Back to Home
+        </Link>
+
         <div className="text-center mb-10 animate-in fade-in duration-1000">
           <div className={`w-20 h-20 ${email.includes('admin') ? 'bg-red-600' : 'bg-[#6B46C1]'} rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 shadow-2xl transition-all duration-500`}>
             🛡️
