@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../firebase";
+import { auth, db, rtdb } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { ref, get } from "firebase/database";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -31,19 +32,22 @@ export default function Login() {
        }
     }, 4000);
 
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       clearTimeout(demoTimeout);
-      setSuccess(true);
       
-      setTimeout(() => {
-        if (email.toLowerCase() === "admin@safecampus.com") {
-          navigate("/");
-        } else {
-          setError("Access Denied: Administrative Clearance Required.");
-          setLoading(false);
-        }
-      }, 800);
+      // Fetch role from RTDB to verify admin status
+      const userRef = ref(rtdb, `users/${userCredential.user.uid}`);
+      const snapshot = await get(userRef);
+      const userData = snapshot.val();
+
+      if (userData?.role === 'admin' || email.toLowerCase() === "admin@safecampus.com") {
+        setSuccess(true);
+        setTimeout(() => navigate("/"), 800);
+      } else {
+        await auth.signOut();
+        setError("ACCESS DENIED: Your account does not have Administrative Clearance.");
+        setLoading(false);
+      }
     } catch (err) {
       clearTimeout(demoTimeout);
       
