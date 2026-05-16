@@ -53,7 +53,7 @@ export default function CampusMap() {
         {/* Map View */}
         <div className="lg:col-span-3 relative bg-gray-900 rounded-[32px] overflow-hidden border border-gray-800 shadow-2xl min-h-[500px]">
           <iframe 
-            src="https://maps.google.com/maps?q=Debre%20Berhan%20University&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+            src="https://maps.google.com/maps?q=9.6823,39.5312&z=17&output=embed" 
             className="w-full h-full border-0 grayscale invert contrast-125 opacity-70"
             allowFullScreen="" 
             loading="lazy" 
